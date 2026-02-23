@@ -288,10 +288,43 @@ function ChapterRow({ ch, mangaId, mangaTitle, coverUrl, sourceId, isRead, isRea
           : "hover:bg-accent"
       )}
     >
-      <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0 flex-1">
+      {/* Mobile layout */}
+      <div className="sm:hidden space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            {isReading ? (
+              <BookOpen className="h-4 w-4 text-primary shrink-0" />
+            ) : isRead ? (
+              <Check className="h-4 w-4 text-muted-foreground shrink-0" />
+            ) : (
+              <span className="w-4 shrink-0" />
+            )}
+            <span className={cn("font-medium", isRead && !isReading && "text-muted-foreground")}>
+              {ch.volume ? `Vol. ${ch.volume} ` : ""}Ch. {ch.chapter ?? "—"}
+            </span>
+          </div>
+          {ch.publishAt && (
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {new Date(ch.publishAt).toLocaleDateString()}
+            </span>
+          )}
+        </div>
+        {ch.title && (
+          <p className={cn("text-sm ml-6", isRead && !isReading ? "text-muted-foreground/70" : "text-muted-foreground")}>
+            {ch.title}
+          </p>
+        )}
+        {ch.scanlationGroup && (
+          <p className="text-xs text-muted-foreground/70 ml-6">
+            {ch.scanlationGroup}
+          </p>
+        )}
+      </div>
+
+      {/* Desktop layout */}
+      <div className="hidden sm:flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="flex items-center gap-2 shrink-0">
-            {/* Read status indicator */}
             {isReading ? (
               <BookOpen className="h-4 w-4 text-primary" />
             ) : isRead ? (
@@ -299,22 +332,19 @@ function ChapterRow({ ch, mangaId, mangaTitle, coverUrl, sourceId, isRead, isRea
             ) : (
               <span className="w-4" />
             )}
-            <span className={cn("font-medium", isRead && !isReading && "text-muted-foreground")}>
-              {ch.volume ? `Vol. ${ch.volume} ` : ""}
-              Ch. {ch.chapter ?? "—"}
+            <span className={cn("font-medium whitespace-nowrap", isRead && !isReading && "text-muted-foreground")}>
+              {ch.volume ? `Vol. ${ch.volume} ` : ""}Ch. {ch.chapter ?? "—"}
             </span>
           </div>
           {ch.title && (
-            <span className={cn("break-words", isRead && !isReading ? "text-muted-foreground/70" : "text-muted-foreground")}>
+            <span className={cn("truncate", isRead && !isReading ? "text-muted-foreground/70" : "text-muted-foreground")}>
               {ch.title}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 sm:gap-3 text-xs text-muted-foreground shrink-0">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
           {ch.scanlationGroup && (
-            <span className="hidden sm:inline whitespace-nowrap">
-              {ch.scanlationGroup}
-            </span>
+            <span className="whitespace-nowrap">{ch.scanlationGroup}</span>
           )}
           {ch.publishAt && (
             <span className="whitespace-nowrap">
@@ -323,11 +353,6 @@ function ChapterRow({ ch, mangaId, mangaTitle, coverUrl, sourceId, isRead, isRea
           )}
         </div>
       </div>
-      {ch.scanlationGroup && (
-        <span className="sm:hidden text-xs text-muted-foreground mt-1 block ml-6">
-          {ch.scanlationGroup}
-        </span>
-      )}
     </Link>
   );
 }

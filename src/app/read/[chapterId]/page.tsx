@@ -270,82 +270,84 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
   const currentUrl = getImageUrl(currentPage);
 
   const toolbar = (
-    <div className="flex items-center justify-between gap-2 flex-wrap">
-      <div className="flex items-center gap-2">
-        {mangaId && (
-          <Link href={`/manga/${mangaId}`}>
-            <Button variant="ghost" size="sm">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 mr-1">
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-              Back
-            </Button>
-          </Link>
-        )}
+    <div className="space-y-2">
+      {/* Top row: Navigation and chapter info */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
+          {mangaId && (
+            <Link href={`/manga/${mangaId}`}>
+              <Button variant="ghost" size="sm" className="px-2 sm:px-3">
+                <ChevronLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Back</span>
+              </Button>
+            </Link>
+          )}
 
-        {/* Chapter Navigation */}
-        {prevChapterUrl && (
-          <Link href={prevChapterUrl}>
-            <Button variant="outline" size="sm" title="Previous chapter ([)">
-              <ChevronLeft className="h-4 w-4" />
-              <span className="hidden sm:inline ml-1">Prev Ch.</span>
-            </Button>
-          </Link>
-        )}
-        {nextChapterUrl && (
-          <Link href={nextChapterUrl}>
-            <Button variant="outline" size="sm" title="Next chapter (])">
-              <span className="hidden sm:inline mr-1">Next Ch.</span>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </Link>
-        )}
+          {/* Chapter Navigation */}
+          {prevChapterUrl && (
+            <Link href={prevChapterUrl}>
+              <Button variant="outline" size="sm" className="px-2 sm:px-3" title="Previous chapter ([)">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+          )}
+          {nextChapterUrl && (
+            <Link href={nextChapterUrl}>
+              <Button variant="outline" size="sm" className="px-2 sm:px-3" title="Next chapter (])">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          )}
+        </div>
 
-        {/* Chapter number display */}
-        {chapterNav?.chapterNumber && (
-          <span className="text-sm font-medium">
-            Ch. {chapterNav.chapterNumber}
-          </span>
-        )}
+        {/* Chapter and page info - centered */}
+        <div className="flex items-center gap-1 text-sm">
+          {chapterNav?.chapterNumber && (
+            <span className="font-medium">Ch. {chapterNav.chapterNumber}</span>
+          )}
+          {readingMode === "paged" && (
+            <span className="text-muted-foreground">
+              · {currentPage + 1}/{totalPages}
+            </span>
+          )}
+          {readingMode === "longstrip" && (
+            <span className="text-muted-foreground">
+              · {totalPages} pg
+            </span>
+          )}
+        </div>
 
-        {readingMode === "paged" && (
-          <span className="text-sm text-muted-foreground">
-            · Page {currentPage + 1} of {totalPages}
-          </span>
-        )}
-        {readingMode === "longstrip" && (
-          <span className="text-sm text-muted-foreground">
-            · {totalPages} strips
-          </span>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowKeyboardHelp(true)}
-          title="Keyboard shortcuts (?)"
-        >
-          <Keyboard className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setReadingMode((m) => (m === "paged" ? "longstrip" : "paged"))}
-          title={readingMode === "paged" ? "Switch to scroll mode" : "Switch to page mode"}
-        >
-          {readingMode === "paged" ? "Scroll" : "Paged"}
-        </Button>
-        {isMangaDex && (
+        {/* Controls */}
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="px-2 hidden sm:flex"
+            onClick={() => setShowKeyboardHelp(true)}
+            title="Keyboard shortcuts (?)"
+          >
+            <Keyboard className="h-4 w-4" />
+          </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setQuality((q) => (q === "data" ? "data-saver" : "data"))}
+            className="px-2 sm:px-3"
+            onClick={() => setReadingMode((m) => (m === "paged" ? "longstrip" : "paged"))}
+            title={readingMode === "paged" ? "Switch to scroll mode" : "Switch to page mode"}
           >
-            {quality === "data" ? "HQ" : "Lite"}
+            {readingMode === "paged" ? "Scroll" : "Paged"}
           </Button>
-        )}
+          {isMangaDex && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="px-2 sm:px-3"
+              onClick={() => setQuality((q) => (q === "data" ? "data-saver" : "data"))}
+            >
+              {quality === "data" ? "HQ" : "Lite"}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -412,27 +414,29 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
         </div>
 
         {/* End of Chapter Navigation */}
-        <div className="flex flex-col items-center gap-4 py-8 border-t">
+        <div className="flex flex-col items-center gap-4 py-8 border-t px-4">
           <p className="text-muted-foreground">End of chapter</p>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
             {prevChapterUrl && (
               <Link href={prevChapterUrl}>
-                <Button variant="outline">
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Previous Chapter
+                <Button variant="outline" size="sm" className="sm:size-default">
+                  <ChevronLeft className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Previous</span>
+                  <span className="sm:hidden">Prev</span>
                 </Button>
               </Link>
             )}
             {mangaId && (
               <Link href={`/manga/${mangaId}`}>
-                <Button variant="outline">Back to manga</Button>
+                <Button variant="outline" size="sm" className="sm:size-default">Back to manga</Button>
               </Link>
             )}
             {nextChapterUrl && (
               <Link href={nextChapterUrl}>
-                <Button>
-                  Next Chapter
-                  <ChevronRight className="h-4 w-4 ml-1" />
+                <Button size="sm" className="sm:size-default">
+                  <span className="hidden sm:inline">Next</span>
+                  <span className="sm:hidden">Next</span>
+                  <ChevronRight className="h-4 w-4 sm:ml-1" />
                 </Button>
               </Link>
             )}
@@ -513,27 +517,28 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
 
       {/* End of Chapter Navigation */}
       {isLastPage && (
-        <div className="flex flex-col items-center gap-4 py-8 border-t">
+        <div className="flex flex-col items-center gap-4 py-8 border-t px-4">
           <p className="text-lg font-medium">Chapter Complete!</p>
-          <div className="flex items-center gap-3 flex-wrap justify-center">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
             {prevChapterUrl && (
               <Link href={prevChapterUrl}>
-                <Button variant="outline">
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Previous Chapter
+                <Button variant="outline" size="sm" className="sm:size-default">
+                  <ChevronLeft className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Previous</span>
+                  <span className="sm:hidden">Prev</span>
                 </Button>
               </Link>
             )}
             {mangaId && (
               <Link href={`/manga/${mangaId}`}>
-                <Button variant="outline">Back to manga</Button>
+                <Button variant="outline" size="sm" className="sm:size-default">Back to manga</Button>
               </Link>
             )}
             {nextChapterUrl && (
               <Link href={nextChapterUrl}>
-                <Button>
-                  Next Chapter
-                  <ChevronRight className="h-4 w-4 ml-1" />
+                <Button size="sm" className="sm:size-default">
+                  <span>Next</span>
+                  <ChevronRight className="h-4 w-4 sm:ml-1" />
                 </Button>
               </Link>
             )}
