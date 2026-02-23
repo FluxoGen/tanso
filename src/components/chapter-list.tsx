@@ -254,10 +254,7 @@ function ChapterRow({ ch, mangaId }: { ch: Chapter; mangaId: string }) {
         </div>
         <div className="flex items-center gap-2 sm:gap-3 text-xs text-muted-foreground shrink-0">
           {ch.scanlationGroup && (
-            <span
-              className="hidden sm:inline truncate max-w-[120px]"
-              title={ch.scanlationGroup}
-            >
+            <span className="hidden sm:inline whitespace-nowrap">
               {ch.scanlationGroup}
             </span>
           )}
