@@ -222,6 +222,7 @@ export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChap
               mangaId={mangaId}
               mangaTitle={mangaTitle}
               coverUrl={coverUrl}
+              sourceId={selectedSource?.sourceId}
               isRead={readChapters.has(ch.id)}
               isReading={ch.id === currentReadingChapter}
             />
@@ -262,16 +263,18 @@ interface ChapterRowProps {
   mangaId: string;
   mangaTitle: string;
   coverUrl: string | null;
+  sourceId?: string;
   isRead: boolean;
   isReading: boolean;
 }
 
-function ChapterRow({ ch, mangaId, mangaTitle, coverUrl, isRead, isReading }: ChapterRowProps) {
+function ChapterRow({ ch, mangaId, mangaTitle, coverUrl, sourceId, isRead, isReading }: ChapterRowProps) {
   const coverParam = coverUrl ? `&cover=${encodeURIComponent(coverUrl)}` : "";
+  const sourceIdParam = sourceId && ch.source !== "mangadex" ? `&sourceId=${encodeURIComponent(sourceId)}` : "";
   const href =
     ch.source === "mangadex"
       ? `/read/${ch.id}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}${coverParam}`
-      : `/read/ext?manga=${mangaId}&source=${ch.source}&chapterId=${encodeURIComponent(ch.id)}&title=${encodeURIComponent(mangaTitle)}${coverParam}`;
+      : `/read/ext?manga=${mangaId}&source=${ch.source}&chapterId=${encodeURIComponent(ch.id)}&title=${encodeURIComponent(mangaTitle)}${coverParam}${sourceIdParam}`;
 
   return (
     <Link

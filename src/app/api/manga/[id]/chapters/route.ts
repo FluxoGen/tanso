@@ -61,12 +61,19 @@ function findNavInList(chapters: Chapter[], currentChapterId: string) {
   if (idx === -1) return null;
 
   const current = chapters[idx];
-  const prev = idx > 0 ? chapters[idx - 1] : null;
-  const next = idx < chapters.length - 1 ? chapters[idx + 1] : null;
+  
+  // Detect if chapters are in descending order (newest first) by comparing first and last
+  const firstNum = parseFloat(chapters[0]?.chapter ?? "0");
+  const lastNum = parseFloat(chapters[chapters.length - 1]?.chapter ?? "0");
+  const isDescending = firstNum > lastNum;
+
+  // For descending lists: prev in array = next chapter, next in array = prev chapter
+  const prevInArray = idx > 0 ? chapters[idx - 1] : null;
+  const nextInArray = idx < chapters.length - 1 ? chapters[idx + 1] : null;
 
   return {
-    prevChapterId: prev?.id ?? null,
-    nextChapterId: next?.id ?? null,
+    prevChapterId: isDescending ? (nextInArray?.id ?? null) : (prevInArray?.id ?? null),
+    nextChapterId: isDescending ? (prevInArray?.id ?? null) : (nextInArray?.id ?? null),
     chapterNumber: current.chapter,
     chapterTitle: current.title,
   };

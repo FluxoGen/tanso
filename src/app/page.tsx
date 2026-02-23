@@ -77,6 +77,7 @@ export default function HomePage() {
           selectedRatings={selectedRatings}
           onTagsChange={handleTagChange}
           onRatingsChange={handleRatingsChange}
+          compact
         />
       </section>
 

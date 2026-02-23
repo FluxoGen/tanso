@@ -19,12 +19,13 @@ interface ChapterNavInfo {
   chapterTitle: string | null;
 }
 
-function ReaderContent({ chapterId, source }: { chapterId: string; source: string }) {
+function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; source: string; sourceId?: string | null }) {
   const searchParams = useSearchParams();
   const mangaId = searchParams.get("manga");
   const mangaTitle = searchParams.get("title") || "Manga";
   const coverUrl = searchParams.get("cover") || null;
   const initialPage = parseInt(searchParams.get("page") || "0", 10);
+  const effectiveSourceId = sourceId || searchParams.get("sourceId");
 
   const [pages, setPages] = useState<ChapterPagesResponse | null>(null);
   const [currentPage, setCurrentPage] = useState(initialPage);
@@ -69,6 +70,9 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
     let url = `/api/manga/${mangaId}/chapters?chapterId=${chapterId}`;
     if (source !== "mangadex") {
       url += `&source=${encodeURIComponent(source)}`;
+      if (effectiveSourceId) {
+        url += `&sourceId=${encodeURIComponent(effectiveSourceId)}`;
+      }
     }
     
     fetch(url)
@@ -79,7 +83,7 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
         }
       })
       .catch(() => {});
-  }, [mangaId, chapterId, source]);
+  }, [mangaId, chapterId, source, effectiveSourceId]);
 
   const isMangaDex = pages != null && "hash" in pages;
   const totalPages = (() => {
@@ -113,14 +117,15 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
       if (source === "mangadex") {
         return `/read/${targetChapterId}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`;
       }
-      return `/read/ext?manga=${mangaId}&source=${encodeURIComponent(source)}&chapterId=${encodeURIComponent(targetChapterId)}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`;
+      const sourceIdParam = effectiveSourceId ? `&sourceId=${encodeURIComponent(effectiveSourceId)}` : "";
+      return `/read/ext?manga=${mangaId}&source=${encodeURIComponent(source)}&chapterId=${encodeURIComponent(targetChapterId)}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}${sourceIdParam}`;
     };
 
     return {
       prevChapterUrl: chapterNav?.prevChapterId ? buildChapterUrl(chapterNav.prevChapterId) : null,
       nextChapterUrl: chapterNav?.nextChapterId ? buildChapterUrl(chapterNav.nextChapterId) : null,
     };
-  }, [source, mangaId, mangaTitle, coverUrl, chapterNav]);
+  }, [source, mangaId, mangaTitle, coverUrl, chapterNav, effectiveSourceId]);
 
   // Auto-detect webtoon long-strip format by probing the second image's aspect ratio
   useEffect(() => {

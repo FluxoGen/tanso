@@ -1,11 +1,17 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, useCallback, Suspense, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { TagFilter } from "@/components/tag-filter";
 import { MangaGrid, MangaGridSkeleton } from "@/components/manga-grid";
+import { MangaCard, MangaCardSkeleton } from "@/components/manga-card";
+import { Loader2, List, Infinity } from "lucide-react";
 import type { Manga } from "@/types/manga";
+
+const ITEMS_PER_PAGE = 20;
+type ViewMode = "infinite" | "paginated";
 
 function SearchContent() {
   const searchParams = useSearchParams();
@@ -22,8 +28,13 @@ function SearchContent() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(pageParam);
   const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("paginated");
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const totalPages = Math.ceil(total / 20);
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   const updateUrl = useCallback(
     (newQ: string, newTags: string[], newRatings: string[], newPage: number) => {
@@ -36,6 +47,10 @@ function SearchContent() {
     },
     [router]
   );
+
+  // Memoize tag/rating strings to avoid recreating on each render
+  const tagKey = tagParams.join(",");
+  const ratingKey = ratingParams.join(",");
 
   useEffect(() => {
     if (!q && tagParams.length === 0) return;
@@ -52,20 +67,105 @@ function SearchContent() {
       .then((json) => {
         setManga(json.data ?? []);
         setTotal(json.total ?? 0);
+        setHasMore(pageParam * ITEMS_PER_PAGE < (json.total ?? 0));
       })
       .catch(() => setManga([]))
       .finally(() => setLoading(false));
-  }, [q, pageParam, tagParams.join(","), ratingParams.join(",")]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, pageParam, tagKey, ratingKey]);
+
+  // Track current page for infinite scroll via ref to avoid dependency issues
+  const infinitePageRef = useRef(1);
+
+  // Reset infinite page ref when search params change
+  useEffect(() => {
+    infinitePageRef.current = 1;
+  }, [q, tagKey, ratingKey]);
+
+  // Load more for infinite scroll
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    const nextPage = infinitePageRef.current + 1;
+
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    params.set("page", String(nextPage));
+    for (const t of tagParams) params.append("genres", t);
+    for (const r of ratingParams) params.append("ratings", r);
+
+    try {
+      const res = await fetch(`/api/search?${params}`);
+      const json = await res.json();
+      const newData = json.data ?? [];
+      const newTotal = json.total ?? 0;
+
+      setManga((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        const uniqueNew = newData.filter((m: Manga) => !existingIds.has(m.id));
+        return [...prev, ...uniqueNew];
+      });
+      setTotal(newTotal);
+      setHasMore(nextPage * ITEMS_PER_PAGE < newTotal);
+      infinitePageRef.current = nextPage;
+    } catch {
+      // ignore
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMore, q, tagParams, ratingParams]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (viewMode !== "infinite" || loading || isLoadingMore || !hasMore) {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+      return;
+    }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [viewMode, loading, isLoadingMore, hasMore, loadMore]);
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    if (mode === viewMode) return;
+    setViewMode(mode);
+    if (mode === "paginated") {
+      setPage(1);
+      // Reset to first page - this will trigger the useEffect
+      updateUrl(q, tagParams, ratingParams, 1);
+    }
+  };
 
   const handleTagsChange = (tags: string[]) => {
     setSelectedTags(tags);
     setPage(1);
+    setManga([]);
     updateUrl(q, tags, selectedRatings, 1);
   };
 
   const handleRatingsChange = (ratings: string[]) => {
     setSelectedRatings(ratings);
     setPage(1);
+    setManga([]);
     updateUrl(q, selectedTags, ratings, 1);
   };
 
@@ -81,12 +181,46 @@ function SearchContent() {
           {q ? `Results for "${q}"` : "Search Manga"}
         </h1>
 
-        <TagFilter
-          selectedTags={selectedTags}
-          selectedRatings={selectedRatings}
-          onTagsChange={handleTagsChange}
-          onRatingsChange={handleRatingsChange}
-        />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <TagFilter
+            selectedTags={selectedTags}
+            selectedRatings={selectedRatings}
+            onTagsChange={handleTagsChange}
+            onRatingsChange={handleRatingsChange}
+            compact
+          />
+
+          {/* View mode toggle */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-sm text-muted-foreground">View:</span>
+            <div className="flex rounded-md border">
+              <button
+                onClick={() => handleViewModeChange("infinite")}
+                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 rounded-l-md transition-colors ${
+                  viewMode === "infinite"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-accent"
+                }`}
+                title="Infinite scroll"
+              >
+                <Infinity className="h-4 w-4" />
+                <span className="hidden sm:inline">Scroll</span>
+              </button>
+              <button
+                onClick={() => handleViewModeChange("paginated")}
+                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 rounded-r-md border-l transition-colors ${
+                  viewMode === "paginated"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-accent"
+                }`}
+                title="Page navigation"
+              >
+                <List className="h-4 w-4" />
+                <span className="hidden sm:inline">Pages</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {q || tagParams.length > 0 ? (
@@ -98,33 +232,75 @@ function SearchContent() {
           </div>
 
           {loading ? (
-            <MangaGridSkeleton count={20} />
-          ) : (
-            <MangaGrid manga={manga} />
-          )}
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => handlePageChange(page - 1)}
-              >
-                Previous
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => handlePageChange(page + 1)}
-              >
-                Next
-              </Button>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {Array.from({ length: 20 }).map((_, i) => (
+                <MangaCardSkeleton key={i} />
+              ))}
             </div>
+          ) : manga.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No manga found</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {manga.map((m) => (
+                  <MangaCard key={m.id} manga={m} />
+                ))}
+              </div>
+
+              {/* Infinite scroll loader */}
+              {viewMode === "infinite" && (
+                <div ref={loadMoreRef} className="flex justify-center py-8">
+                  {isLoadingMore ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  ) : hasMore ? (
+                    <span className="text-sm text-muted-foreground">Scroll for more</span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">No more results</span>
+                  )}
+                </div>
+              )}
+
+              {/* Pagination controls */}
+              {viewMode === "paginated" && totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-4 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => handlePageChange(page - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Page</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={totalPages}
+                      value={page}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        if (!isNaN(val) && val >= 1 && val <= totalPages) {
+                          handlePageChange(val);
+                        }
+                      }}
+                      className="w-16 h-8 text-center text-sm"
+                    />
+                    <span className="text-sm text-muted-foreground">of {totalPages}</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= totalPages}
+                    onClick={() => handlePageChange(page + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </>
       ) : (

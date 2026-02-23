@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getCoverUrl } from "@/lib/mangadex";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 
 interface Suggestion {
   id: string;
@@ -144,7 +144,7 @@ export function SearchBar() {
           </svg>
           <Input
             ref={inputRef}
-            type="search"
+            type="text"
             placeholder="Search manga..."
             value={value}
             onChange={(e) => {
@@ -154,12 +154,25 @@ export function SearchBar() {
             }}
             onFocus={() => setShowSuggestions(true)}
             onKeyDown={handleKeyDown}
-            className="pl-9 h-9"
+            className={`pl-9 h-9 ${value || isLoading ? "pr-9" : ""}`}
             autoComplete="off"
           />
-          {isLoading && (
+          {isLoading ? (
             <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
-          )}
+          ) : value ? (
+            <button
+              type="button"
+              onClick={() => {
+                setValue("");
+                setSuggestions([]);
+                setShowSuggestions(false);
+                inputRef.current?.focus();
+              }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
         <Button type="submit" size="sm" className="h-9 shrink-0">
           Search
