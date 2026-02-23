@@ -226,7 +226,7 @@ function ChapterRow({ ch, mangaId }: { ch: Chapter; mangaId: string }) {
             Ch. {ch.chapter ?? "—"}
           </span>
           {ch.title && (
-            <span className="text-muted-foreground">
+            <span className="text-muted-foreground break-words">
               {ch.title}
             </span>
           )}
