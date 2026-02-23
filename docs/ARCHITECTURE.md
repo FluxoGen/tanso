@@ -284,7 +284,7 @@ tanso/
 │   │   ├── layout.tsx                 # Root layout: fonts, ThemeProvider, Navbar, Footer, <main> wrapper
 │   │   ├── page.tsx                   # Home page: continue reading, tag filter, trending/popular/latest
 │   │   ├── search/
-│   │   │   └── page.tsx               # Search: query input, genre filters, paginated results
+│   │   │   └── page.tsx               # Search: query + filters, infinite scroll/pagination toggle, page input
 │   │   ├── manga/
 │   │   │   └── [id]/
 │   │   │       └── page.tsx           # Manga detail: cover, metadata, AniList enrichment, library button, chapter list
@@ -294,7 +294,7 @@ tanso/
 │   │   │   └── ext/
 │   │   │       └── page.tsx           # Consumet reader: query-param entry point for external sources
 │   │   ├── latest/
-│   │   │   └── page.tsx               # Latest manga with infinite scroll and tag filtering
+│   │   │   └── page.tsx               # Latest manga with infinite scroll/pagination toggle, page input, filters
 │   │   ├── library/
 │   │   │   └── page.tsx               # User's manga library with status tabs (reading, plan to read, etc.)
 │   │   ├── history/
@@ -320,15 +320,16 @@ tanso/
 │   │   ├── ui/                        # shadcn/ui primitives (Button, Badge, Input, Skeleton, etc.)
 │   │   ├── navbar.tsx                 # Sticky top bar: logo, nav links, search bar, theme toggle, mobile menu
 │   │   ├── footer.tsx                 # Footer with copyright and FluxoGen attribution
-│   │   ├── search-bar.tsx             # Search input with debounced suggestions dropdown
+│   │   ├── search-bar.tsx             # Search input with debounced suggestions dropdown and clear button
 │   │   ├── theme-toggle.tsx           # Dark/light mode switch button
-│   │   ├── tag-filter.tsx             # Collapsible tag filter with genres, themes, demographic, rating
+│   │   ├── tag-filter.tsx             # Collapsible tag filter with genres, themes, demographic, rating (compact mode)
 │   │   ├── genre-chips.tsx            # Simple horizontal scrollable genre pill selector
 │   │   ├── manga-card.tsx             # Single manga card with content rating badges
 │   │   ├── manga-grid.tsx             # Responsive grid of MangaCard components
-│   │   ├── chapter-list.tsx           # Multi-source chapter list with read/reading indicators
+│   │   ├── chapter-list.tsx           # Multi-source chapter list with read/reading indicators (mobile-optimized)
 │   │   ├── library-button.tsx         # Add to library button with status dropdown
-│   │   └── continue-reading.tsx       # Continue reading section with progress bars
+│   │   ├── continue-reading.tsx       # Continue reading section with progress bars
+│   │   └── scroll-to-top.tsx          # Floating scroll-to-top button (appears after 300px scroll)
 │   │
 │   ├── hooks/
 │   │   ├── useReadingProgress.ts      # Hook for auto-saving/retrieving reading progress

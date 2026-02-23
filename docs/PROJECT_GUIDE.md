@@ -39,9 +39,9 @@ The app does not host any manga content itself. Instead, it aggregates data from
 
 - **AniList GraphQL API** (`https://graphql.anilist.co`) — A supplementary data source. Provides richer metadata than MangaDex: community scores, detailed descriptions, banner images, and recommendations. Used on the manga detail page to enrich the experience.
 
-- **MangaReader** (via `@consumet/extensions`) — A secondary chapter source. When MangaDex has limited chapters (e.g., due to DMCA takedowns), MangaReader provides an alternative source. Accessed through the Consumet scraping library.
+- **MangaPill** (via `@consumet/extensions`) — A secondary chapter source. When MangaDex has limited chapters (e.g., due to DMCA takedowns), MangaPill provides an alternative source. Accessed through the Consumet scraping library.
 
-**Why multiple sources?** MangaDex has the best metadata and community but some manga have chapters removed due to licensing. MangaReader fills those gaps. AniList provides rich metadata that neither MangaDex nor MangaReader have. The provider registry pattern makes adding future sources trivial.
+**Why multiple sources?** MangaDex has the best metadata and community but some manga have chapters removed due to licensing. MangaPill fills those gaps. AniList provides rich metadata that neither MangaDex nor MangaPill have. The provider registry pattern makes adding future sources trivial.
 
 ---
 
@@ -57,7 +57,7 @@ The provider registry is an abstraction layer that wraps all content sources beh
 - `types.ts` — Defines `ContentProvider` and `ProviderSearchResult` interfaces
 - `index.ts` — Registry with `registerProvider()`, `getProvider()`, `listProviders()` functions
 - `mangadex.ts` — MangaDex provider wrapping existing `src/lib/mangadex.ts` functions
-- `mangareader.ts` — MangaReader provider wrapping `@consumet/extensions` with 5-second timeouts
+- `mangareader.ts` — MangaPill provider wrapping `@consumet/extensions` with 5-second timeouts
 
 **Adding a new provider** requires only creating a new file that implements `ContentProvider` and calling `registerProvider()` in `index.ts`. No other files need changes.
 
@@ -306,27 +306,32 @@ The entry point of the application. Displays three sections of manga (Trending, 
 
 **File:** `src/app/search/page.tsx`
 
-A full-featured search interface with text input, genre filtering, and paginated results.
+A full-featured search interface with text input, tag filtering (genres, themes, demographics, content ratings), and dual pagination modes.
 
 **URL-driven state:**
 - `q` — search query text
-- `genres` — selected genre tag IDs (repeatable param)
-- `page` — current page number
+- `tags` — selected tag IDs for genres/themes/demographics (repeatable param)
+- `ratings` — content rating filters (safe, suggestive, erotica, pornographic)
+- `page` — current page number (paginated mode only)
 
-All state is derived from URL search params (`useSearchParams`). When the user types a query, selects genres, or clicks a pagination button, the URL is updated via `router.push()`, which triggers a re-render and a new API fetch.
+All state is derived from URL search params (`useSearchParams`). When the user types a query, selects filters, or clicks a pagination button, the URL is updated via `router.push()`, which triggers a re-render and a new API fetch.
 
-**Why URL state?** This makes search results bookmarkable and shareable. The browser's back/forward buttons work naturally. If someone shares a URL like `/search?q=naruto&genres=action-tag-id&page=2`, the recipient sees the exact same results.
+**View modes:**
+- **Scroll (infinite)** — Results load automatically as the user scrolls down. Uses IntersectionObserver to detect when the bottom is reached.
+- **Pages (paginated)** — Traditional prev/next navigation with a page number input for direct jumps. Page input navigates on Enter or blur.
+
+**Why URL state?** This makes search results bookmarkable and shareable. The browser's back/forward buttons work naturally. If someone shares a URL like `/search?q=naruto&tags=action-tag-id&page=2`, the recipient sees the exact same results.
 
 **Data flow:**
 1. User types "Naruto" and clicks Search (or presses Enter)
 2. URL updates to `/search?q=naruto`
 3. `useEffect` fires, calls `GET /api/search?q=naruto&page=1`
 4. Results render in a `MangaGrid`
-5. User clicks "Action" genre chip
-6. URL updates to `/search?q=naruto&genres=action-tag-id`
+5. User clicks "Action" tag in TagFilter
+6. URL updates to `/search?q=naruto&tags=action-tag-id`
 7. `useEffect` fires again with the new params
 
-The page is wrapped in a `<Suspense>` boundary because `useSearchParams()` requires it in Next.js App Router.
+The page is wrapped in a `<Suspense>` boundary because `useSearchParams()` requires it in Next.js App Router. A scroll-to-top button appears after scrolling 300px.
 
 ---
 

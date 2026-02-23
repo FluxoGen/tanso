@@ -25,10 +25,10 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 **What works:**
 - Home page with tag filtering (genres, themes, demographics, content ratings) and three curated manga sections
 - Continue Reading section showing manga with saved progress
-- Dedicated Latest page with infinite scroll and filters
+- Dedicated Latest page with infinite scroll/pagination toggle and filters
+- Search page with infinite scroll/pagination toggle, typeahead suggestions (6 visible, scroll for more), and content rating filters
 - Library page to organize manga by status (Reading, Plan to Read, Completed, On Hold, Dropped)
 - History page showing recently read manga grouped by date
-- Search with title query and tag filters, paginated results, and typeahead suggestions
 - Manga detail page merging MangaDex content with AniList metadata (scores, banners, descriptions)
 - All tag groups displayed on detail page: Genres, Themes, Demographic, Format
 - Add to Library button with status dropdown on detail pages
@@ -42,6 +42,8 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - Visual chapter read indicators: checkmark (completed), book icon (in-progress)
 - Keyboard shortcuts help modal (press `?` in reader)
 - HQ/Lite quality toggle for MangaDex chapters
+- Scroll-to-top button on Latest, Search, and Reader (longstrip mode) pages
+- Direct page number input for navigation on Latest and Search pages
 - Secured image proxy with domain whitelist for MangaPill images (CDN requires Referer header)
 - Provider registry pattern for future extensibility (anime, light novels)
 - In-memory LRU caching for source discovery and chapter lists
@@ -51,7 +53,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - Robust title matching with romanization normalization (`wo`→`o`, `ou`→`o`), prefix similarity, and concatenated-title handling
 - Content rating badges on manga cards: Suggestive, Erotica (orange), 18+ (red)
 - Dark mode with system preference detection
-- Responsive layout (mobile through desktop) with mobile navigation menu
+- Responsive mobile layouts for reader toolbar, chapter list, and navigation
 - Loading skeletons on all pages
 - Error states for failed API calls
 - Footer with FluxoGen attribution and logo
@@ -241,6 +243,19 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - **All tag groups on manga detail** — Show Genres, Themes, Demographic, and Format tags in separate labeled sections.
 - **Content rating badges** — Color-coded badges on manga cards: Suggestive (default), Erotica (orange), 18+ (red).
 
+### Milestone 21: UI/UX Polish & Mobile Improvements
+- **View mode toggle** — Latest and Search pages have Scroll (infinite) / Pages (paginated) toggle with smooth transitions.
+- **Page number input** — Direct page navigation by typing page number (Enter or blur to navigate) on Latest and Search pages.
+- **Scroll-to-top button** — Floating button appears after scrolling 300px on Latest, Search, and Reader (longstrip mode) pages.
+- **Search suggestions infinite scroll** — Shows 6 suggestions initially, loads more on scroll (up to 20 total from API).
+- **Search filters fix** — Content rating filters now properly passed to MangaDex API for search results.
+- **MangaPill keyboard navigation fix** — Detected descending chapter order and swapped prev/next for correct `[`/`]` behavior.
+- **Compact filter UI** — Tag filter component with collapsible sections, descriptions, and responsive layout.
+- **Mobile reader toolbar** — Reorganized for better spacing, hidden keyboard shortcut button (not useful on mobile), shorter labels.
+- **Mobile chapter list** — Stacked layout with proper alignment: chapter number + date on first line, title below, scanlation group below.
+- **Mobile end-of-chapter navigation** — Buttons wrap properly on narrow screens with smaller sizes and shorter text.
+- **External reader sourceId** — Properly passes sourceId through URL chain for correct chapter navigation on external sources.
+
 ---
 
 ## 4. Upcoming / Future Work
@@ -266,7 +281,7 @@ These features are not yet implemented. They are listed in rough priority order.
 - **Recommendations section** — Show AniList recommendations on the detail page
 - **Related manga** — Display related manga from MangaDex relationships
 - ~~**Advanced filters**~~ — ✅ Implemented in Milestone 19 (genre, theme, demographic, content rating filters)
-- ~~**Infinite scroll**~~ — ✅ Implemented on Latest page in Milestone 19
+- ~~**Infinite scroll**~~ — ✅ Implemented on Latest and Search pages with view mode toggle in Milestone 21
 
 ### Phase 5: Performance & Polish
 - **Server-side caching** — Cache MangaDex responses with TTL (trending/popular change slowly)
