@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback, useRef, use, Suspense, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { ScrollToTop } from "@/components/scroll-to-top";
 import { useReadingProgress } from "@/hooks/useReadingProgress";
 import { addToHistory, markChapterAsRead } from "@/lib/storage";
 import { ChevronLeft, ChevronRight, Keyboard } from "lucide-react";
@@ -437,6 +438,8 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
             )}
           </div>
         </div>
+
+        <ScrollToTop />
       </div>
     );
   }

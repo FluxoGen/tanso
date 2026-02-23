@@ -3,10 +3,9 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, Suspense, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { TagFilter } from "@/components/tag-filter";
-import { MangaGrid, MangaGridSkeleton } from "@/components/manga-grid";
 import { MangaCard, MangaCardSkeleton } from "@/components/manga-card";
+import { ScrollToTop } from "@/components/scroll-to-top";
 import { Loader2, List, Infinity } from "lucide-react";
 import type { Manga } from "@/types/manga";
 
@@ -275,18 +274,27 @@ function SearchContent() {
                   </Button>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Page</span>
-                    <Input
+                    <input
                       type="number"
                       min={1}
                       max={totalPages}
-                      value={page}
-                      onChange={(e) => {
+                      defaultValue={page}
+                      key={page}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const val = parseInt((e.target as HTMLInputElement).value, 10);
+                          if (!isNaN(val) && val >= 1 && val <= totalPages) {
+                            handlePageChange(val);
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
                         const val = parseInt(e.target.value, 10);
-                        if (!isNaN(val) && val >= 1 && val <= totalPages) {
+                        if (!isNaN(val) && val >= 1 && val <= totalPages && val !== page) {
                           handlePageChange(val);
                         }
                       }}
-                      className="w-16 h-8 text-center text-sm"
+                      className="w-16 h-8 rounded-md border bg-background px-2 text-center text-sm"
                     />
                     <span className="text-sm text-muted-foreground">of {totalPages}</span>
                   </div>
@@ -308,13 +316,21 @@ function SearchContent() {
           Use the search bar above to find manga, or select a genre to browse.
         </p>
       )}
+
+      <ScrollToTop />
     </div>
   );
 }
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<MangaGridSkeleton count={20} />}>
+    <Suspense fallback={
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {Array.from({ length: 20 }).map((_, i) => (
+          <MangaCardSkeleton key={i} />
+        ))}
+      </div>
+    }>
       <SearchContent />
     </Suspense>
   );

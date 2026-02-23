@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await searchManga(query, { limit: 8 });
+    const result = await searchManga(query, { limit: 20 });
 
     const suggestions = result.data.map((manga) => ({
       id: manga.id,

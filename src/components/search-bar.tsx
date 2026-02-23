@@ -18,17 +18,21 @@ interface Suggestion {
   status: string;
 }
 
+const VISIBLE_SUGGESTIONS = 6;
+
 export function SearchBar() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [value, setValue] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [visibleCount, setVisibleCount] = useState(VISIBLE_SUGGESTIONS);
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -67,6 +71,7 @@ export function SearchBar() {
     }
 
     setIsLoading(true);
+    setVisibleCount(VISIBLE_SUGGESTIONS);
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await fetch(`/api/suggest?q=${encodeURIComponent(trimmed)}`);
@@ -182,39 +187,55 @@ export function SearchBar() {
       {/* Suggestions Dropdown */}
       {showSuggestions && suggestions.length > 0 && (
         <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-popover rounded-lg border shadow-lg overflow-hidden">
-          {suggestions.map((suggestion, index) => (
-            <button
-              key={suggestion.id}
-              onClick={() => handleSuggestionClick(suggestion.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-accent transition-colors ${
-                index === selectedIndex ? "bg-accent" : ""
-              }`}
-            >
-              <div className="relative w-10 h-14 shrink-0 rounded overflow-hidden bg-muted">
-                {suggestion.coverFileName ? (
-                  <Image
-                    src={getCoverUrl(suggestion.id, suggestion.coverFileName, "256")}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="40px"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[8px] text-muted-foreground">
-                    No Cover
-                  </div>
-                )}
+          <div
+            ref={suggestionsRef}
+            className="max-h-[360px] overflow-y-auto"
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              if (el.scrollTop + el.clientHeight >= el.scrollHeight - 10) {
+                setVisibleCount((prev) => Math.min(prev + VISIBLE_SUGGESTIONS, suggestions.length));
+              }
+            }}
+          >
+            {suggestions.slice(0, visibleCount).map((suggestion, index) => (
+              <button
+                key={suggestion.id}
+                onClick={() => handleSuggestionClick(suggestion.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-accent transition-colors ${
+                  index === selectedIndex ? "bg-accent" : ""
+                }`}
+              >
+                <div className="relative w-10 h-14 shrink-0 rounded overflow-hidden bg-muted">
+                  {suggestion.coverFileName ? (
+                    <Image
+                      src={getCoverUrl(suggestion.id, suggestion.coverFileName, "256")}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="40px"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[8px] text-muted-foreground">
+                      No Cover
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sm line-clamp-1">{suggestion.title}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-1">
+                    {[suggestion.authorName, suggestion.year, suggestion.status]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </div>
+              </button>
+            ))}
+            {visibleCount < suggestions.length && (
+              <div className="py-2 text-center text-xs text-muted-foreground">
+                Scroll for more...
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-sm line-clamp-1">{suggestion.title}</p>
-                <p className="text-xs text-muted-foreground line-clamp-1">
-                  {[suggestion.authorName, suggestion.year, suggestion.status]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-              </div>
-            </button>
-          ))}
+            )}
+          </div>
           <div className="border-t px-3 py-2">
             <button
               onClick={handleSubmit as unknown as () => void}

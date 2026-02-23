@@ -129,7 +129,7 @@ export default function MangaDetailPage({ params }: { params: Promise<{ id: stri
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Alternate Titles
               </h3>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap justify-center sm:justify-start gap-1.5">
                 {altTitles.map((t) => (
                   <span
                     key={t}

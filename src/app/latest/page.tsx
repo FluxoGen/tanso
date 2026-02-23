@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { MangaCard, MangaCardSkeleton } from "@/components/manga-card";
 import { TagFilter } from "@/components/tag-filter";
+import { ScrollToTop } from "@/components/scroll-to-top";
 import { Button } from "@/components/ui/button";
 import type { Manga } from "@/types/manga";
 import { Loader2, List, Infinity } from "lucide-react";
@@ -233,10 +234,19 @@ export default function LatestPage() {
                   type="number"
                   min={1}
                   max={totalPages}
-                  value={currentPage}
-                  onChange={(e) => {
+                  defaultValue={currentPage}
+                  key={currentPage}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const page = parseInt((e.target as HTMLInputElement).value, 10);
+                      if (page >= 1 && page <= totalPages) {
+                        handlePageChange(page);
+                      }
+                    }
+                  }}
+                  onBlur={(e) => {
                     const page = parseInt(e.target.value, 10);
-                    if (page >= 1 && page <= totalPages) {
+                    if (page >= 1 && page <= totalPages && page !== currentPage) {
                       handlePageChange(page);
                     }
                   }}
@@ -257,6 +267,8 @@ export default function LatestPage() {
           )}
         </>
       )}
+
+      <ScrollToTop />
     </main>
   );
 }
