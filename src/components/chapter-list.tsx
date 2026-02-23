@@ -31,6 +31,7 @@ export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChap
   const [chapterError, setChapterError] = useState<string | null>(null);
   const [readChapters, setReadChapters] = useState<Set<string>>(new Set());
   const [currentReadingChapter, setCurrentReadingChapter] = useState<string | null>(null);
+  const [currentSessionComplete, setCurrentSessionComplete] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   // Load read chapter status
@@ -42,6 +43,12 @@ export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChap
       const progress = getProgress(mangaId);
       if (progress) {
         setCurrentReadingChapter(progress.chapterId);
+        // Check if the current reading session is complete (at or past the last page)
+        const isSessionComplete = progress.totalPages > 0 && progress.page >= progress.totalPages - 1;
+        setCurrentSessionComplete(isSessionComplete);
+      } else {
+        setCurrentReadingChapter(null);
+        setCurrentSessionComplete(false);
       }
     };
 
@@ -243,6 +250,7 @@ export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChap
               sourceId={selectedSource?.sourceId}
               isRead={readChapters.has(ch.id)}
               isReading={ch.id === currentReadingChapter}
+              isCurrentSessionComplete={ch.id === currentReadingChapter && currentSessionComplete}
             />
           ))}
         </div>
@@ -284,9 +292,10 @@ interface ChapterRowProps {
   sourceId?: string;
   isRead: boolean;
   isReading: boolean;
+  isCurrentSessionComplete: boolean;
 }
 
-function ChapterRow({ ch, mangaId, mangaTitle, coverUrl, sourceId, isRead, isReading }: ChapterRowProps) {
+function ChapterRow({ ch, mangaId, mangaTitle, coverUrl, sourceId, isRead, isReading, isCurrentSessionComplete }: ChapterRowProps) {
   const coverParam = coverUrl ? `&cover=${encodeURIComponent(coverUrl)}` : "";
   const sourceIdParam = sourceId && ch.source !== "mangadex" ? `&sourceId=${encodeURIComponent(sourceId)}` : "";
   const href =
@@ -294,14 +303,24 @@ function ChapterRow({ ch, mangaId, mangaTitle, coverUrl, sourceId, isRead, isRea
       ? `/read/${ch.id}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}${coverParam}`
       : `/read/ext?manga=${mangaId}&source=${ch.source}&chapterId=${encodeURIComponent(ch.id)}&title=${encodeURIComponent(mangaTitle)}${coverParam}${sourceIdParam}`;
 
+  // A chapter shows as "reading" (book icon) if:
+  // 1. It's the current chapter being read (isReading), AND
+  // 2. The current reading session is NOT complete (user hasn't reached the last page yet)
+  // 
+  // A chapter shows as "completed" (checkmark) if:
+  // 1. It was completed previously (isRead), OR
+  // 2. It's the current chapter AND the current session is complete
+  const effectiveIsReading = isReading && !isCurrentSessionComplete;
+  const effectiveIsRead = isRead || (isReading && isCurrentSessionComplete);
+
   return (
     <Link
       href={href}
       className={cn(
         "block rounded-md px-3 py-2.5 text-sm transition-colors relative",
-        isReading
+        effectiveIsReading
           ? "bg-primary/10 hover:bg-primary/15 border-l-2 border-primary"
-          : isRead
+          : effectiveIsRead
           ? "bg-muted/50 hover:bg-accent"
           : "hover:bg-accent"
       )}
@@ -310,14 +329,14 @@ function ChapterRow({ ch, mangaId, mangaTitle, coverUrl, sourceId, isRead, isRea
       <div className="sm:hidden space-y-1">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            {isReading ? (
+            {effectiveIsReading ? (
               <BookOpen className="h-4 w-4 text-primary shrink-0" />
-            ) : isRead ? (
+            ) : effectiveIsRead ? (
               <Check className="h-4 w-4 text-muted-foreground shrink-0" />
             ) : (
               <span className="w-4 shrink-0" />
             )}
-            <span className={cn("font-medium", isRead && !isReading && "text-muted-foreground")}>
+            <span className={cn("font-medium", effectiveIsRead && "text-muted-foreground")}>
               {ch.volume ? `Vol. ${ch.volume} ` : ""}Ch. {ch.chapter ?? "—"}
             </span>
           </div>
@@ -328,7 +347,7 @@ function ChapterRow({ ch, mangaId, mangaTitle, coverUrl, sourceId, isRead, isRea
           )}
         </div>
         {ch.title && (
-          <p className={cn("text-sm ml-6", isRead && !isReading ? "text-muted-foreground/70" : "text-muted-foreground")}>
+          <p className={cn("text-sm ml-6", effectiveIsRead ? "text-muted-foreground/70" : "text-muted-foreground")}>
             {ch.title}
           </p>
         )}
@@ -343,19 +362,19 @@ function ChapterRow({ ch, mangaId, mangaTitle, coverUrl, sourceId, isRead, isRea
       <div className="hidden sm:flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="flex items-center gap-2 shrink-0">
-            {isReading ? (
+            {effectiveIsReading ? (
               <BookOpen className="h-4 w-4 text-primary" />
-            ) : isRead ? (
+            ) : effectiveIsRead ? (
               <Check className="h-4 w-4 text-muted-foreground" />
             ) : (
               <span className="w-4" />
             )}
-            <span className={cn("font-medium whitespace-nowrap", isRead && !isReading && "text-muted-foreground")}>
+            <span className={cn("font-medium whitespace-nowrap", effectiveIsRead && "text-muted-foreground")}>
               {ch.volume ? `Vol. ${ch.volume} ` : ""}Ch. {ch.chapter ?? "—"}
             </span>
           </div>
           {ch.title && (
-            <span className={cn("truncate", isRead && !isReading ? "text-muted-foreground/70" : "text-muted-foreground")}>
+            <span className={cn("truncate", effectiveIsRead ? "text-muted-foreground/70" : "text-muted-foreground")}>
               {ch.title}
             </span>
           )}
