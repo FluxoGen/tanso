@@ -63,4 +63,6 @@ Detailed documentation lives in the [`docs/`](docs/) folder:
 
 ## License
 
-This project is for personal, non-commercial use only. MangaDex API usage requires crediting MangaDex and scanlation groups, and prohibits monetization.
+This project is licensed under the [MIT License](LICENSE).
+
+**Note:** While the code is MIT licensed, usage of third-party APIs (MangaDex, AniList) is subject to their respective terms of service. MangaDex API usage requires crediting MangaDex and scanlation groups, and prohibits monetization of their content.
