@@ -63,9 +63,15 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
 
   // Fetch chapter navigation info
   useEffect(() => {
-    if (!mangaId || source !== "mangadex") return;
+    if (!mangaId) return;
     
-    fetch(`/api/manga/${mangaId}/chapters?chapterId=${chapterId}`)
+    // Build URL with source info for non-MangaDex chapters
+    let url = `/api/manga/${mangaId}/chapters?chapterId=${chapterId}`;
+    if (source !== "mangadex") {
+      url += `&source=${encodeURIComponent(source)}`;
+    }
+    
+    fetch(url)
       .then((r) => r.json())
       .then((json) => {
         if (json.nav) {
@@ -124,8 +130,8 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
         setCurrentPage(page);
         window.scrollTo({ top: 0, behavior: "instant" });
 
-        // Save progress
-        if (mangaId) {
+        // Save progress only if user has read past page 1 (to avoid cluttering with accidental opens)
+        if (mangaId && page > 0) {
           updateProgress({
             mangaId,
             mangaTitle,
@@ -193,16 +199,16 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
         goTo(currentPage - 1);
       }
       // Chapter navigation with brackets or shift+arrows
-      if ((e.key === "]" || (e.shiftKey && e.key === "ArrowRight")) && chapterNav?.nextChapterId) {
-        window.location.href = `/read/${chapterNav.nextChapterId}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`;
+      if ((e.key === "]" || (e.shiftKey && e.key === "ArrowRight")) && nextChapterUrl) {
+        window.location.href = nextChapterUrl;
       }
-      if ((e.key === "[" || (e.shiftKey && e.key === "ArrowLeft")) && chapterNav?.prevChapterId) {
-        window.location.href = `/read/${chapterNav.prevChapterId}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`;
+      if ((e.key === "[" || (e.shiftKey && e.key === "ArrowLeft")) && prevChapterUrl) {
+        window.location.href = prevChapterUrl;
       }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [currentPage, goTo, readingMode, chapterNav, mangaId, mangaTitle, coverUrl]);
+  }, [currentPage, goTo, readingMode, nextChapterUrl, prevChapterUrl]);
 
   // Preload next pages (paged mode only)
   useEffect(() => {
@@ -242,12 +248,16 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
 
   const currentUrl = getImageUrl(currentPage);
 
-  const prevChapterUrl = chapterNav?.prevChapterId
-    ? `/read/${chapterNav.prevChapterId}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`
-    : null;
-  const nextChapterUrl = chapterNav?.nextChapterId
-    ? `/read/${chapterNav.nextChapterId}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`
-    : null;
+  // Build chapter navigation URLs based on source
+  const buildChapterUrl = (targetChapterId: string) => {
+    if (source === "mangadex") {
+      return `/read/${targetChapterId}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`;
+    }
+    return `/read/ext?manga=${mangaId}&source=${encodeURIComponent(source)}&chapterId=${encodeURIComponent(targetChapterId)}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`;
+  };
+
+  const prevChapterUrl = chapterNav?.prevChapterId ? buildChapterUrl(chapterNav.prevChapterId) : null;
+  const nextChapterUrl = chapterNav?.nextChapterId ? buildChapterUrl(chapterNav.nextChapterId) : null;
 
   const toolbar = (
     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -281,14 +291,21 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
           </Link>
         )}
 
+        {/* Chapter number display */}
+        {chapterNav?.chapterNumber && (
+          <span className="text-sm font-medium">
+            Ch. {chapterNav.chapterNumber}
+          </span>
+        )}
+
         {readingMode === "paged" && (
           <span className="text-sm text-muted-foreground">
-            Page {currentPage + 1} of {totalPages}
+            · Page {currentPage + 1} of {totalPages}
           </span>
         )}
         {readingMode === "longstrip" && (
           <span className="text-sm text-muted-foreground">
-            {totalPages} strips
+            · {totalPages} strips
           </span>
         )}
       </div>

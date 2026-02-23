@@ -3,7 +3,7 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { Button } from "@/components/ui/button";
-import { GenreChips } from "@/components/genre-chips";
+import { TagFilter } from "@/components/tag-filter";
 import { MangaGrid, MangaGridSkeleton } from "@/components/manga-grid";
 import type { Manga } from "@/types/manga";
 
@@ -13,9 +13,11 @@ function SearchContent() {
 
   const q = searchParams.get("q") ?? "";
   const pageParam = parseInt(searchParams.get("page") ?? "1", 10);
-  const genreParams = searchParams.getAll("genres");
+  const tagParams = searchParams.getAll("tag");
+  const ratingParams = searchParams.getAll("rating");
 
-  const [selectedGenres, setSelectedGenres] = useState<string[]>(genreParams);
+  const [selectedTags, setSelectedTags] = useState<string[]>(tagParams);
+  const [selectedRatings, setSelectedRatings] = useState<string[]>(ratingParams);
   const [manga, setManga] = useState<Manga[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(pageParam);
@@ -24,24 +26,26 @@ function SearchContent() {
   const totalPages = Math.ceil(total / 20);
 
   const updateUrl = useCallback(
-    (newQ: string, newGenres: string[], newPage: number) => {
+    (newQ: string, newTags: string[], newRatings: string[], newPage: number) => {
       const params = new URLSearchParams();
       if (newQ) params.set("q", newQ);
       if (newPage > 1) params.set("page", String(newPage));
-      for (const g of newGenres) params.append("genres", g);
+      for (const t of newTags) params.append("tag", t);
+      for (const r of newRatings) params.append("rating", r);
       router.push(`/search?${params.toString()}`);
     },
     [router]
   );
 
   useEffect(() => {
-    if (!q && genreParams.length === 0) return;
+    if (!q && tagParams.length === 0) return;
 
     setLoading(true);
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     params.set("page", String(pageParam));
-    for (const g of genreParams) params.append("genres", g);
+    for (const t of tagParams) params.append("genres", t);
+    for (const r of ratingParams) params.append("ratings", r);
 
     fetch(`/api/search?${params}`)
       .then((r) => r.json())
@@ -51,17 +55,23 @@ function SearchContent() {
       })
       .catch(() => setManga([]))
       .finally(() => setLoading(false));
-  }, [q, pageParam, genreParams.join(",")]);
+  }, [q, pageParam, tagParams.join(","), ratingParams.join(",")]);
 
-  const handleGenreChange = (genres: string[]) => {
-    setSelectedGenres(genres);
+  const handleTagsChange = (tags: string[]) => {
+    setSelectedTags(tags);
     setPage(1);
-    updateUrl(q, genres, 1);
+    updateUrl(q, tags, selectedRatings, 1);
+  };
+
+  const handleRatingsChange = (ratings: string[]) => {
+    setSelectedRatings(ratings);
+    setPage(1);
+    updateUrl(q, selectedTags, ratings, 1);
   };
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
-    updateUrl(q, genreParams, newPage);
+    updateUrl(q, tagParams, ratingParams, newPage);
   };
 
   return (
@@ -71,10 +81,15 @@ function SearchContent() {
           {q ? `Results for "${q}"` : "Search Manga"}
         </h1>
 
-        <GenreChips selected={selectedGenres} onChange={handleGenreChange} />
+        <TagFilter
+          selectedTags={selectedTags}
+          selectedRatings={selectedRatings}
+          onTagsChange={handleTagsChange}
+          onRatingsChange={handleRatingsChange}
+        />
       </div>
 
-      {q || genreParams.length > 0 ? (
+      {q || tagParams.length > 0 ? (
         <>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">

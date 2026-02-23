@@ -12,6 +12,7 @@ import type { Chapter, MangaSource } from "@/types/manga";
 interface ChapterListProps {
   mangaId: string;
   mangaTitle: string;
+  coverUrl: string | null;
   altTitles?: string[];
   lastChapter: string | null;
   anilistId?: string;
@@ -19,7 +20,7 @@ interface ChapterListProps {
 
 const CHAPTERS_PER_PAGE = 30;
 
-export function ChapterList({ mangaId, mangaTitle, altTitles, lastChapter, anilistId }: ChapterListProps) {
+export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChapter, anilistId }: ChapterListProps) {
   const [sources, setSources] = useState<MangaSource[]>([]);
   const [selectedSource, setSelectedSource] = useState<MangaSource | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -34,13 +35,37 @@ export function ChapterList({ mangaId, mangaTitle, altTitles, lastChapter, anili
 
   // Load read chapter status
   useEffect(() => {
-    const readList = getReadChapters(mangaId);
-    setReadChapters(new Set(readList));
-    
-    const progress = getProgress(mangaId);
-    if (progress) {
-      setCurrentReadingChapter(progress.chapterId);
-    }
+    const loadReadStatus = () => {
+      const readList = getReadChapters(mangaId);
+      setReadChapters(new Set(readList));
+      
+      const progress = getProgress(mangaId);
+      if (progress) {
+        setCurrentReadingChapter(progress.chapterId);
+      }
+    };
+
+    loadReadStatus();
+
+    // Listen for storage changes (e.g., when returning from reader)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "tanso:chapters_read" || e.key === "tanso:progress") {
+        loadReadStatus();
+      }
+    };
+
+    // Also refresh when window gains focus (returning from reader)
+    const handleFocus = () => {
+      loadReadStatus();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [mangaId]);
 
   // Discover sources progressively
@@ -196,6 +221,7 @@ export function ChapterList({ mangaId, mangaTitle, altTitles, lastChapter, anili
               ch={ch}
               mangaId={mangaId}
               mangaTitle={mangaTitle}
+              coverUrl={coverUrl}
               isRead={readChapters.has(ch.id)}
               isReading={ch.id === currentReadingChapter}
             />
@@ -235,15 +261,17 @@ interface ChapterRowProps {
   ch: Chapter;
   mangaId: string;
   mangaTitle: string;
+  coverUrl: string | null;
   isRead: boolean;
   isReading: boolean;
 }
 
-function ChapterRow({ ch, mangaId, mangaTitle, isRead, isReading }: ChapterRowProps) {
+function ChapterRow({ ch, mangaId, mangaTitle, coverUrl, isRead, isReading }: ChapterRowProps) {
+  const coverParam = coverUrl ? `&cover=${encodeURIComponent(coverUrl)}` : "";
   const href =
     ch.source === "mangadex"
-      ? `/read/${ch.id}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}`
-      : `/read/ext?manga=${mangaId}&source=${ch.source}&chapterId=${encodeURIComponent(ch.id)}&title=${encodeURIComponent(mangaTitle)}`;
+      ? `/read/${ch.id}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}${coverParam}`
+      : `/read/ext?manga=${mangaId}&source=${ch.source}&chapterId=${encodeURIComponent(ch.id)}&title=${encodeURIComponent(mangaTitle)}${coverParam}`;
 
   return (
     <Link

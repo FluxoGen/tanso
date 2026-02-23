@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAllReadingProgress } from "@/hooks/useReadingProgress";
 import { getCoverUrl } from "@/lib/mangadex";
-import { BookOpen, ChevronRight, Play } from "lucide-react";
+import { clearProgress } from "@/lib/storage";
+import { BookOpen, ChevronRight, Play, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReadingProgress } from "@/lib/storage";
 
@@ -15,11 +16,21 @@ interface ContinueReadingProps {
 
 export function ContinueReading({ maxItems = 6 }: ContinueReadingProps) {
   const [mounted, setMounted] = useState(false);
-  const { progressList, isLoading } = useAllReadingProgress();
+  const { progressList, isLoading, refresh } = useAllReadingProgress();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleRemove = useCallback(
+    (mangaId: string, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      clearProgress(mangaId);
+      refresh();
+    },
+    [refresh]
+  );
 
   if (!mounted || isLoading) {
     return (
@@ -68,14 +79,24 @@ export function ContinueReading({ maxItems = 6 }: ContinueReadingProps) {
 
       <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
         {items.map((progress) => (
-          <ContinueReadingCard key={progress.mangaId} progress={progress} />
+          <ContinueReadingCard
+            key={progress.mangaId}
+            progress={progress}
+            onRemove={handleRemove}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function ContinueReadingCard({ progress }: { progress: ReadingProgress }) {
+function ContinueReadingCard({
+  progress,
+  onRemove,
+}: {
+  progress: ReadingProgress;
+  onRemove: (mangaId: string, e: React.MouseEvent) => void;
+}) {
   const coverUrl = progress.coverUrl
     ? progress.coverUrl.includes("mangadex.org")
       ? progress.coverUrl
@@ -116,6 +137,15 @@ function ContinueReadingCard({ progress }: { progress: ReadingProgress }) {
               <Play className="h-6 w-6 fill-current" />
             </div>
           </div>
+
+          {/* Remove button */}
+          <button
+            onClick={(e) => onRemove(progress.mangaId, e)}
+            className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+            title="Remove from Continue Reading"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
 
           {/* Progress bar */}
           <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/50">
