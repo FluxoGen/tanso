@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState, useCallback, useRef, use, Suspense } from "react";
+import { useEffect, useState, useCallback, useRef, use, Suspense, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { useReadingProgress } from "@/hooks/useReadingProgress";
 import { addToHistory, markChapterAsRead } from "@/lib/storage";
@@ -106,6 +106,21 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
     },
     [pages, quality, source],
   );
+
+  // Build chapter navigation URLs (must be computed before useEffect that uses them)
+  const { prevChapterUrl, nextChapterUrl } = useMemo(() => {
+    const buildChapterUrl = (targetChapterId: string) => {
+      if (source === "mangadex") {
+        return `/read/${targetChapterId}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`;
+      }
+      return `/read/ext?manga=${mangaId}&source=${encodeURIComponent(source)}&chapterId=${encodeURIComponent(targetChapterId)}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`;
+    };
+
+    return {
+      prevChapterUrl: chapterNav?.prevChapterId ? buildChapterUrl(chapterNav.prevChapterId) : null,
+      nextChapterUrl: chapterNav?.nextChapterId ? buildChapterUrl(chapterNav.nextChapterId) : null,
+    };
+  }, [source, mangaId, mangaTitle, coverUrl, chapterNav]);
 
   // Auto-detect webtoon long-strip format by probing the second image's aspect ratio
   useEffect(() => {
@@ -247,17 +262,6 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
   }
 
   const currentUrl = getImageUrl(currentPage);
-
-  // Build chapter navigation URLs based on source
-  const buildChapterUrl = (targetChapterId: string) => {
-    if (source === "mangadex") {
-      return `/read/${targetChapterId}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`;
-    }
-    return `/read/ext?manga=${mangaId}&source=${encodeURIComponent(source)}&chapterId=${encodeURIComponent(targetChapterId)}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`;
-  };
-
-  const prevChapterUrl = chapterNav?.prevChapterId ? buildChapterUrl(chapterNav.prevChapterId) : null;
-  const nextChapterUrl = chapterNav?.nextChapterId ? buildChapterUrl(chapterNav.nextChapterId) : null;
 
   const toolbar = (
     <div className="flex items-center justify-between gap-2 flex-wrap">

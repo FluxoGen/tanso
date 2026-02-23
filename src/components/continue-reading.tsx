@@ -97,11 +97,17 @@ function ContinueReadingCard({
   progress: ReadingProgress;
   onRemove: (mangaId: string, e: React.MouseEvent) => void;
 }) {
-  const coverUrl = progress.coverUrl
-    ? progress.coverUrl.includes("mangadex.org")
-      ? progress.coverUrl
-      : getCoverUrl(progress.mangaId, progress.coverUrl, "256")
-    : null;
+  // Build cover URL - coverUrl can be a filename or full URL
+  const coverUrl = (() => {
+    if (!progress.coverUrl) return null;
+    // If already a full URL, use it
+    if (progress.coverUrl.startsWith("http")) return progress.coverUrl;
+    // If it looks like a filename (has extension), build full URL
+    if (progress.coverUrl.includes(".")) {
+      return getCoverUrl(progress.mangaId, progress.coverUrl, "256");
+    }
+    return null;
+  })();
 
   const percentComplete = Math.round((progress.page / progress.totalPages) * 100);
   const chapterText = progress.chapterNumber
@@ -110,8 +116,8 @@ function ContinueReadingCard({
 
   const readUrl =
     progress.source === "mangadex"
-      ? `/read/${progress.chapterId}?page=${progress.page}`
-      : `/read/ext?chapterId=${progress.chapterId}&mangaId=${progress.mangaId}&page=${progress.page}`;
+      ? `/read/${progress.chapterId}?manga=${progress.mangaId}&title=${encodeURIComponent(progress.mangaTitle)}&cover=${encodeURIComponent(progress.coverUrl || "")}&page=${progress.page}`
+      : `/read/ext?manga=${progress.mangaId}&source=${encodeURIComponent(progress.source)}&chapterId=${encodeURIComponent(progress.chapterId)}&title=${encodeURIComponent(progress.mangaTitle)}&cover=${encodeURIComponent(progress.coverUrl || "")}&page=${progress.page}`;
 
   return (
     <div className="w-36 sm:w-40 shrink-0 group">

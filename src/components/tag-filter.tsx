@@ -21,6 +21,14 @@ const TAG_GROUP_LABELS: Record<TagGroup, string> = {
   demographic: "Demographic",
 };
 
+const TAG_GROUP_DESCRIPTIONS: Record<string, string> = {
+  genre: "Story categories",
+  theme: "Featured topics",
+  demographic: "Target audience",
+  format: "Publication style",
+  rating: "Content maturity",
+};
+
 const TAG_GROUP_ORDER: TagGroup[] = ["genre", "theme", "demographic", "format"];
 
 interface TagFilterProps {
@@ -159,6 +167,7 @@ export function TagFilter({
       {/* Content Rating Row */}
       <FilterRow
         label="Rating"
+        description={TAG_GROUP_DESCRIPTIONS.rating}
         isExpanded={expandedGroups.has("rating")}
         onToggle={() => toggleGroup("rating")}
         compact={compact}
@@ -174,6 +183,8 @@ export function TagFilter({
                 ? "danger"
                 : rating.id === "erotica"
                 ? "warning"
+                : rating.id === "suggestive"
+                ? "caution"
                 : undefined
             }
           />
@@ -189,6 +200,7 @@ export function TagFilter({
           <FilterRow
             key={group}
             label={TAG_GROUP_LABELS[group]}
+            description={TAG_GROUP_DESCRIPTIONS[group]}
             isExpanded={expandedGroups.has(group)}
             onToggle={() => toggleGroup(group)}
             compact={compact}
@@ -211,6 +223,7 @@ export function TagFilter({
 
 interface FilterRowProps {
   label: string;
+  description?: string;
   isExpanded: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -220,6 +233,7 @@ interface FilterRowProps {
 
 function FilterRow({
   label,
+  description,
   isExpanded,
   onToggle,
   children,
@@ -238,6 +252,11 @@ function FilterRow({
           <ChevronDown className="h-4 w-4" />
         )}
         {label}
+        {description && (
+          <span className="text-xs text-muted-foreground/60 hidden sm:inline">
+            — {description}
+          </span>
+        )}
         {selectedCount > 0 && (
           <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
             {selectedCount}
@@ -264,7 +283,7 @@ interface FilterChipProps {
   label: string;
   isSelected: boolean;
   onClick: () => void;
-  variant?: "default" | "warning" | "danger";
+  variant?: "default" | "caution" | "warning" | "danger";
 }
 
 function FilterChip({ label, isSelected, onClick, variant = "default" }: FilterChipProps) {
@@ -278,11 +297,15 @@ function FilterChip({ label, isSelected, onClick, variant = "default" }: FilterC
             ? "bg-red-500 text-white"
             : variant === "warning"
             ? "bg-orange-500 text-white"
+            : variant === "caution"
+            ? "bg-yellow-500 text-black"
             : "bg-primary text-primary-foreground"
           : variant === "danger"
           ? "bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20"
           : variant === "warning"
           ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-500/20"
+          : variant === "caution"
+          ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/20"
           : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
       )}
     >

@@ -202,13 +202,6 @@ function ExpandableDescription({ html }: { html: string }) {
   );
 }
 
-const TAG_DESCRIPTIONS: Record<string, string> = {
-  Genres: "Categories that describe the story type",
-  Themes: "Topics and elements featured in the story",
-  Demographic: "Target audience this manga is aimed at",
-  Format: "Publication format and style",
-};
-
 function TagSection({
   label,
   tags,
@@ -222,16 +215,9 @@ function TagSection({
 
   return (
     <div className="space-y-1.5">
-      <div className="flex items-baseline gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {label}
-        </h3>
-        {TAG_DESCRIPTIONS[label] && (
-          <span className="text-[10px] text-muted-foreground/70 hidden sm:inline">
-            — {TAG_DESCRIPTIONS[label]}
-          </span>
-        )}
-      </div>
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </h3>
       <div className="flex flex-wrap justify-center sm:justify-start gap-1.5">
         {tags.map((t) => (
           <Badge key={t.id} variant={variant} className="text-xs">
