@@ -209,8 +209,6 @@ export function ChapterList({ mangaId, mangaTitle, altTitles, lastChapter, anili
 }
 
 function ChapterRow({ ch, mangaId }: { ch: Chapter; mangaId: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const hasLongTitle = ch.title && ch.title.length > 50;
   const href =
     ch.source === "mangadex"
       ? `/read/${ch.id}?manga=${mangaId}`
@@ -228,27 +226,8 @@ function ChapterRow({ ch, mangaId }: { ch: Chapter; mangaId: string }) {
             Ch. {ch.chapter ?? "—"}
           </span>
           {ch.title && (
-            <span className="flex items-center gap-1 min-w-0">
-              <span
-                className={`text-muted-foreground ${
-                  expanded ? "" : "line-clamp-2 sm:truncate sm:max-w-[350px]"
-                }`}
-                title={ch.title}
-              >
-                {ch.title}
-              </span>
-              {hasLongTitle && (
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setExpanded(!expanded);
-                  }}
-                  className="text-xs text-primary hover:underline shrink-0 sm:hidden"
-                >
-                  {expanded ? "[less]" : "[more]"}
-                </button>
-              )}
+            <span className="text-muted-foreground">
+              {ch.title}
             </span>
           )}
         </div>
