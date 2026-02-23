@@ -29,8 +29,28 @@ function parseChapterNumber(ch: { id: string; chapterNumber?: number; chapter?: 
 
 function safeDate(raw: string | undefined | null): string {
   if (!raw) return "";
+
   const d = new Date(raw);
-  return isNaN(d.getTime()) ? "" : d.toISOString();
+  if (!isNaN(d.getTime())) return d.toISOString();
+
+  const now = new Date();
+  const relativeMatch = raw.match(/(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago/i);
+  if (relativeMatch) {
+    const value = parseInt(relativeMatch[1], 10);
+    const unit = relativeMatch[2].toLowerCase();
+    switch (unit) {
+      case "second": now.setSeconds(now.getSeconds() - value); break;
+      case "minute": now.setMinutes(now.getMinutes() - value); break;
+      case "hour": now.setHours(now.getHours() - value); break;
+      case "day": now.setDate(now.getDate() - value); break;
+      case "week": now.setDate(now.getDate() - value * 7); break;
+      case "month": now.setMonth(now.getMonth() - value); break;
+      case "year": now.setFullYear(now.getFullYear() - value); break;
+    }
+    return now.toISOString();
+  }
+
+  return "";
 }
 
 export class MangaReaderProvider implements ContentProvider {

@@ -29,9 +29,20 @@ export function MangaCard({ manga }: { manga: Manga }) {
             No Cover
           </div>
         )}
-        {manga.contentRating === "suggestive" && (
-          <Badge variant="secondary" className="absolute top-1.5 right-1.5 text-[10px]">
-            Suggestive
+        {manga.contentRating && manga.contentRating !== "safe" && (
+          <Badge
+            variant="secondary"
+            className={`absolute top-1.5 right-1.5 text-[10px] font-medium shadow-sm backdrop-blur-sm ${
+              manga.contentRating === "pornographic"
+                ? "bg-red-500/90 text-white dark:bg-red-600/90"
+                : manga.contentRating === "erotica"
+                ? "bg-orange-500/90 text-white dark:bg-orange-600/90"
+                : "bg-yellow-500/90 text-black dark:bg-yellow-600/90"
+            }`}
+          >
+            {manga.contentRating === "suggestive" && "Suggestive"}
+            {manga.contentRating === "erotica" && "Erotica"}
+            {manga.contentRating === "pornographic" && "18+"}
           </Badge>
         )}
       </div>

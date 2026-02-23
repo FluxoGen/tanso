@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { GenreChips } from "@/components/genre-chips";
+import { useSearchParams, useRouter } from "next/navigation";
+import { TagFilter } from "@/components/tag-filter";
+import { ContinueReading } from "@/components/continue-reading";
 import { MangaGrid, MangaGridSkeleton } from "@/components/manga-grid";
 import type { Manga } from "@/types/manga";
 
 type Section = "trending" | "popular" | "latest";
 
-function useMangaSection(section: Section, tags: string[]) {
+function useMangaSection(section: Section, tags: string[], ratings: string[]) {
   const [data, setData] = useState<Manga[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -15,33 +17,68 @@ function useMangaSection(section: Section, tags: string[]) {
     setLoading(true);
     const params = new URLSearchParams();
     for (const t of tags) params.append("tags", t);
+    for (const r of ratings) params.append("ratings", r);
 
     fetch(`/api/manga/${section}?${params}`)
       .then((r) => r.json())
       .then((json) => setData(json.data ?? []))
       .catch(() => setData([]))
       .finally(() => setLoading(false));
-  }, [section, tags]);
+  }, [section, tags, ratings]);
 
   return { data, loading };
 }
 
 export default function HomePage() {
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Read initial state from URL
+  const [selectedTags, setSelectedTags] = useState<string[]>(() => 
+    searchParams.getAll("tag")
+  );
+  const [selectedRatings, setSelectedRatings] = useState<string[]>(() =>
+    searchParams.getAll("rating")
+  );
 
-  const trending = useMangaSection("trending", selectedTags);
-  const popular = useMangaSection("popular", selectedTags);
-  const latest = useMangaSection("latest", selectedTags);
+  const trending = useMangaSection("trending", selectedTags, selectedRatings);
+  const popular = useMangaSection("popular", selectedTags, selectedRatings);
+  const latest = useMangaSection("latest", selectedTags, selectedRatings);
+
+  // Update URL when filters change
+  const updateUrl = useCallback((tags: string[], ratings: string[]) => {
+    const params = new URLSearchParams();
+    tags.forEach(t => params.append("tag", t));
+    ratings.forEach(r => params.append("rating", r));
+    
+    const queryString = params.toString();
+    router.push(queryString ? `/?${queryString}` : "/", { scroll: false });
+  }, [router]);
 
   const handleTagChange = useCallback((tags: string[]) => {
     setSelectedTags(tags);
-  }, []);
+    updateUrl(tags, selectedRatings);
+  }, [selectedRatings, updateUrl]);
+
+  const handleRatingsChange = useCallback((ratings: string[]) => {
+    setSelectedRatings(ratings);
+    updateUrl(selectedTags, ratings);
+  }, [selectedTags, updateUrl]);
 
   return (
     <div className="space-y-8">
-      <section>
-        <h1 className="text-2xl font-bold tracking-tight mb-4">Discover Manga</h1>
-        <GenreChips selected={selectedTags} onChange={handleTagChange} />
+      {/* Continue Reading Section */}
+      <ContinueReading maxItems={6} />
+
+      <section className="space-y-4">
+        <h1 className="text-2xl font-bold tracking-tight">Discover Manga</h1>
+        <TagFilter
+          selectedTags={selectedTags}
+          selectedRatings={selectedRatings}
+          onTagsChange={handleTagChange}
+          onRatingsChange={handleRatingsChange}
+          compact
+        />
       </section>
 
       <section className="space-y-3">

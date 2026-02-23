@@ -23,8 +23,9 @@ A complete end-to-end explanation of how Tanso works, from the backend API clien
    - [Example 2: User Searches "Naruto" with Action Genre](#example-2-user-searches-naruto-with-action-genre)
    - [Example 3: User Opens a Manga Detail Page](#example-3-user-opens-a-manga-detail-page)
    - [Example 4: User Reads a Chapter](#example-4-user-reads-a-chapter)
-6. [Data Types](#6-data-types)
-7. [Theming — How Dark Mode Works](#7-theming--how-dark-mode-works)
+6. [Reading Progress, Library & History](#6-reading-progress-library--history)
+7. [Data Types](#7-data-types)
+8. [Theming — How Dark Mode Works](#8-theming--how-dark-mode-works)
 
 ---
 
@@ -38,9 +39,9 @@ The app does not host any manga content itself. Instead, it aggregates data from
 
 - **AniList GraphQL API** (`https://graphql.anilist.co`) — A supplementary data source. Provides richer metadata than MangaDex: community scores, detailed descriptions, banner images, and recommendations. Used on the manga detail page to enrich the experience.
 
-- **MangaReader** (via `@consumet/extensions`) — A secondary chapter source. When MangaDex has limited chapters (e.g., due to DMCA takedowns), MangaReader provides an alternative source. Accessed through the Consumet scraping library.
+- **MangaPill** (via `@consumet/extensions`) — A secondary chapter source. When MangaDex has limited chapters (e.g., due to DMCA takedowns), MangaPill provides an alternative source. Accessed through the Consumet scraping library.
 
-**Why multiple sources?** MangaDex has the best metadata and community but some manga have chapters removed due to licensing. MangaReader fills those gaps. AniList provides rich metadata that neither MangaDex nor MangaReader have. The provider registry pattern makes adding future sources trivial.
+**Why multiple sources?** MangaDex has the best metadata and community but some manga have chapters removed due to licensing. MangaPill fills those gaps. AniList provides rich metadata that neither MangaDex nor MangaPill have. The provider registry pattern makes adding future sources trivial.
 
 ---
 
@@ -56,7 +57,7 @@ The provider registry is an abstraction layer that wraps all content sources beh
 - `types.ts` — Defines `ContentProvider` and `ProviderSearchResult` interfaces
 - `index.ts` — Registry with `registerProvider()`, `getProvider()`, `listProviders()` functions
 - `mangadex.ts` — MangaDex provider wrapping existing `src/lib/mangadex.ts` functions
-- `mangareader.ts` — MangaReader provider wrapping `@consumet/extensions` with 5-second timeouts
+- `mangareader.ts` — MangaPill provider wrapping `@consumet/extensions` with 5-second timeouts
 
 **Adding a new provider** requires only creating a new file that implements `ContentProvider` and calling `registerProvider()` in `index.ts`. No other files need changes.
 
@@ -305,27 +306,32 @@ The entry point of the application. Displays three sections of manga (Trending, 
 
 **File:** `src/app/search/page.tsx`
 
-A full-featured search interface with text input, genre filtering, and paginated results.
+A full-featured search interface with text input, tag filtering (genres, themes, demographics, content ratings), and dual pagination modes.
 
 **URL-driven state:**
 - `q` — search query text
-- `genres` — selected genre tag IDs (repeatable param)
-- `page` — current page number
+- `tags` — selected tag IDs for genres/themes/demographics (repeatable param)
+- `ratings` — content rating filters (safe, suggestive, erotica, pornographic)
+- `page` — current page number (paginated mode only)
 
-All state is derived from URL search params (`useSearchParams`). When the user types a query, selects genres, or clicks a pagination button, the URL is updated via `router.push()`, which triggers a re-render and a new API fetch.
+All state is derived from URL search params (`useSearchParams`). When the user types a query, selects filters, or clicks a pagination button, the URL is updated via `router.push()`, which triggers a re-render and a new API fetch.
 
-**Why URL state?** This makes search results bookmarkable and shareable. The browser's back/forward buttons work naturally. If someone shares a URL like `/search?q=naruto&genres=action-tag-id&page=2`, the recipient sees the exact same results.
+**View modes:**
+- **Scroll (infinite)** — Results load automatically as the user scrolls down. Uses IntersectionObserver to detect when the bottom is reached.
+- **Pages (paginated)** — Traditional prev/next navigation with a page number input for direct jumps. Page input navigates on Enter or blur.
+
+**Why URL state?** This makes search results bookmarkable and shareable. The browser's back/forward buttons work naturally. If someone shares a URL like `/search?q=naruto&tags=action-tag-id&page=2`, the recipient sees the exact same results.
 
 **Data flow:**
 1. User types "Naruto" and clicks Search (or presses Enter)
 2. URL updates to `/search?q=naruto`
 3. `useEffect` fires, calls `GET /api/search?q=naruto&page=1`
 4. Results render in a `MangaGrid`
-5. User clicks "Action" genre chip
-6. URL updates to `/search?q=naruto&genres=action-tag-id`
+5. User clicks "Action" tag in TagFilter
+6. URL updates to `/search?q=naruto&tags=action-tag-id`
 7. `useEffect` fires again with the new params
 
-The page is wrapped in a `<Suspense>` boundary because `useSearchParams()` requires it in Next.js App Router.
+The page is wrapped in a `<Suspense>` boundary because `useSearchParams()` requires it in Next.js App Router. A scroll-to-top button appears after scrolling 300px.
 
 ---
 
@@ -637,7 +643,83 @@ Only shown for MangaDex chapters (which have two quality tiers). Hidden for Cons
 
 ---
 
-## 6. Data Types
+## 6. Reading Progress, Library & History
+
+Tanso provides client-side persistence for tracking reading progress without requiring user authentication. All data is stored in the browser's localStorage.
+
+### Reading Progress
+
+**Storage key:** `tanso:progress`
+
+Reading progress is automatically saved when reading chapters:
+
+1. **Auto-save on page turn:** The `useReadingProgress` hook saves progress with debouncing (1 second delay) to avoid excessive writes
+2. **Flush on exit:** When leaving a chapter, `flushProgress()` is called to ensure the final position is saved
+3. **Chapter completion:** When reaching the last page, the chapter is marked as read in `tanso:chapters_read`
+
+**Data flow:**
+```
+User turns page → updateProgress() → debounce 1s → saveProgress() → localStorage
+User leaves page → flushProgress() → immediate save → localStorage
+User reaches last page → markChapterAsRead() → localStorage
+```
+
+### Library (Bookmarks)
+
+**Storage key:** `tanso:library`
+
+Users can add manga to their library with status tracking:
+
+- **Reading:** Currently reading
+- **Plan to Read:** Want to read later
+- **Completed:** Finished reading
+- **On Hold:** Paused
+- **Dropped:** Stopped reading
+
+**UI components:**
+- `LibraryButton` (manga detail page) — dropdown to add/update status
+- `/library` page — grid view with status tabs
+- Visual badges on library cards showing current status
+
+### Reading History
+
+**Storage key:** `tanso:history`
+
+Automatically tracks the last 100 manga read:
+
+- Added when entering any chapter
+- Updated with latest chapter info
+- Grouped by date in the history page (Today, Yesterday, This Week, etc.)
+
+**UI components:**
+- `/history` page — timeline view with date groupings
+- "Continue" link to resume reading
+- Clear all button with confirmation
+
+### Continue Reading
+
+**Storage key:** `tanso:progress` (same as reading progress)
+
+The home page displays a "Continue Reading" section showing manga with saved progress:
+
+- Shows cover, title, chapter number, and progress percentage
+- Progress bar visualization
+- Click to resume at the saved page position
+
+### Chapter Read Indicators
+
+**Storage key:** `tanso:chapters_read`
+
+The chapter list shows visual indicators for read status:
+
+- **Checkmark icon:** Chapter completed (reached last page)
+- **Book icon:** Currently reading (has saved progress)
+- **No icon:** Unread
+- **Background colors:** Reading chapters have highlighted backgrounds
+
+---
+
+## 7. Data Types
 
 ### `Manga` (`src/types/manga.ts`)
 
@@ -744,7 +826,7 @@ A discriminated union type. Check `"hash" in response` to narrow:
 
 ---
 
-## 7. Theming — How Dark Mode Works
+## 8. Theming — How Dark Mode Works
 
 Dark mode is implemented using three technologies working together:
 

@@ -11,6 +11,7 @@ function ExtReaderContent() {
   const chapterId = searchParams.get("chapterId");
   const source = searchParams.get("source");
   const mangaId = searchParams.get("manga");
+  const sourceId = searchParams.get("sourceId");
 
   if (!chapterId || !source) {
     return (
@@ -27,7 +28,7 @@ function ExtReaderContent() {
     );
   }
 
-  return <ReaderContent chapterId={chapterId} source={source} />;
+  return <ReaderContent chapterId={chapterId} source={source} sourceId={sourceId} />;
 }
 
 export default function ExtReaderPage() {

@@ -14,11 +14,15 @@ A full-stack application for discovering and exploring manga, anime, and more. B
 ## Features
 
 - **Discover manga** — Browse trending, popular, and latest manga on the home page
-- **Genre filtering** — Filter manga by genre using a scrollable chip bar (Action, Romance, Fantasy, etc.)
-- **Search** — Search by title with optional genre filters and paginated results
-- **Manga details** — View cover art, metadata, AniList community scores, descriptions, and chapter lists
-- **Chapter reader** — Read manga page-by-page with keyboard navigation, click navigation, page selector, and image preloading
-- **Quality toggle** — Switch between original quality (HQ) and compressed (Lite) images
+- **Advanced filtering** — Filter by genres, themes, demographics, and content ratings (Safe, Suggestive, Erotica, 18+)
+- **Search** — Search by title with typeahead suggestions, tag filters, and infinite scroll or paginated results
+- **Manga details** — View cover art, metadata, AniList community scores, descriptions, and multi-source chapter lists
+- **Chapter reader** — Read in paged mode or vertical scroll (webtoon) mode with keyboard navigation and auto-progress tracking
+- **Reading progress** — Auto-saves reading position, marks chapters as read, and shows "Continue Reading" on the home page
+- **Library & History** — Bookmark manga with status tracking (Reading, Plan to Read, Completed, etc.) and view reading history
+- **Multi-source chapters** — MangaDex as primary source with MangaPill fallback for additional content
+- **Quality toggle** — Switch between original quality (HQ) and compressed (Lite) images for MangaDex chapters
+- **Responsive design** — Optimized layouts for mobile, tablet, and desktop
 - **Dark mode** — Automatic system preference detection with manual toggle
 
 ## Tech Stack

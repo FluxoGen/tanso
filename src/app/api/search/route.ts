@@ -24,17 +24,20 @@ export async function GET(request: NextRequest) {
     const q = searchParams.get("q") ?? "";
     const page = parseInt(searchParams.get("page") ?? "1", 10);
     const genres = searchParams.getAll("genres");
+    const ratings = searchParams.getAll("ratings");
     const limit = 20;
     const offset = (page - 1) * limit;
     const tagFilters = genres.length ? genres : undefined;
 
+    const contentRatings = ratings.length ? ratings : undefined;
+
     if (!q) {
-      const result = await searchManga("", { limit, offset, includedTags: tagFilters });
+      const result = await searchManga("", { limit, offset, includedTags: tagFilters, contentRatings });
       return NextResponse.json(result);
     }
 
     const [mdResult, anilistMedia] = await Promise.all([
-      searchManga(q, { limit, offset, includedTags: tagFilters }),
+      searchManga(q, { limit, offset, includedTags: tagFilters, contentRatings }),
       searchAniListManga(q),
     ]);
 
@@ -49,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     // AniList suggests a different canonical title — search MangaDex with it
     for (const altTitle of altTitles) {
-      const altResult = await searchManga(altTitle, { limit, offset, includedTags: tagFilters });
+      const altResult = await searchManga(altTitle, { limit, offset, includedTags: tagFilters, contentRatings });
       if (altResult.data.length === 0) continue;
 
       if (mdResult.data.length === 0) {
