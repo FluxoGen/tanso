@@ -185,13 +185,36 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
     }
   }, [mangaId, mangaTitle, coverUrl, chapterId, chapterNav, source, pages, totalPages]);
 
-  // Mark chapter as read when reaching last page
+  // Mark chapter as read when reaching last page (paged mode)
   useEffect(() => {
-    if (mangaId && currentPage >= totalPages - 1 && totalPages > 0) {
+    if (readingMode === "paged" && mangaId && currentPage >= totalPages - 1 && totalPages > 0) {
       completeChapter(chapterId);
       markChapterAsRead(mangaId, chapterId);
     }
-  }, [mangaId, currentPage, totalPages, chapterId, completeChapter]);
+  }, [readingMode, mangaId, currentPage, totalPages, chapterId, completeChapter]);
+
+  // Track if chapter has been marked as read in longstrip mode
+  const longstripReadRef = useRef(false);
+
+  // Mark chapter as read when scrolling to end in longstrip mode
+  useEffect(() => {
+    if (readingMode !== "longstrip" || !mangaId || totalPages === 0 || longstripReadRef.current) return;
+
+    const handleScroll = () => {
+      // Check if we're near the bottom of the page (within 200px)
+      const scrolledToBottom = 
+        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 200;
+      
+      if (scrolledToBottom && !longstripReadRef.current) {
+        longstripReadRef.current = true;
+        completeChapter(chapterId);
+        markChapterAsRead(mangaId, chapterId);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [readingMode, mangaId, totalPages, chapterId, completeChapter]);
 
   // Save progress when leaving page
   useEffect(() => {

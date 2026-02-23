@@ -47,24 +47,42 @@ export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChap
 
     loadReadStatus();
 
-    // Listen for storage changes (e.g., when returning from reader)
+    // Listen for storage changes (cross-tab only)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "tanso:chapters_read" || e.key === "tanso:progress") {
         loadReadStatus();
       }
     };
 
-    // Also refresh when window gains focus (returning from reader)
+    // Refresh when window gains focus (returning from reader)
     const handleFocus = () => {
       loadReadStatus();
     };
 
+    // Refresh when page becomes visible (back/forward navigation)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadReadStatus();
+      }
+    };
+
+    // Refresh on pageshow event (bfcache restoration)
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        loadReadStatus();
+      }
+    };
+
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pageshow", handlePageShow);
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pageshow", handlePageShow);
     };
   }, [mangaId]);
 
