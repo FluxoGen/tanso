@@ -155,6 +155,7 @@ export async function getMangaDetails(id: string): Promise<Manga> {
   params.append("includes[]", "cover_art");
   params.append("includes[]", "author");
   params.append("includes[]", "artist");
+  appendContentRatings(params);
 
   const res = await fetch(`${BASE_URL}/manga/${id}?${params}`);
   const json = await res.json();
@@ -172,6 +173,7 @@ export async function getMangaChapters(
     "order[chapter]": options.order ?? "desc",
     "includes[]": "scanlation_group",
   });
+  appendContentRatings(params);
 
   const res = await fetch(`${BASE_URL}/manga/${id}/feed?${params}`);
   const json = await res.json();

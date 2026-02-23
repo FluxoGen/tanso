@@ -174,38 +174,9 @@ export function ChapterList({ mangaId, mangaTitle, altTitles, lastChapter, anili
         </p>
       ) : (
         <div className="space-y-1">
-          {displayChapters.map((ch) => {
-            const href =
-              ch.source === "mangadex"
-                ? `/read/${ch.id}?manga=${mangaId}`
-                : `/read/ext?manga=${mangaId}&source=${ch.source}&chapterId=${encodeURIComponent(ch.id)}`;
-
-            return (
-              <Link
-                key={`${ch.source}:${ch.id}`}
-                href={href}
-                className="flex items-center justify-between gap-4 rounded-md px-3 py-2.5 text-sm hover:bg-accent transition-colors"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="font-medium shrink-0">
-                    {ch.volume ? `Vol. ${ch.volume} ` : ""}
-                    Ch. {ch.chapter ?? "—"}
-                  </span>
-                  {ch.title && (
-                    <span className="text-muted-foreground truncate">{ch.title}</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
-                  {ch.scanlationGroup && (
-                    <span className="hidden sm:inline">{ch.scanlationGroup}</span>
-                  )}
-                  {ch.publishAt && (
-                    <span>{new Date(ch.publishAt).toLocaleDateString()}</span>
-                  )}
-                </div>
-              </Link>
-            );
-          })}
+          {displayChapters.map((ch) => (
+            <ChapterRow key={`${ch.source}:${ch.id}`} ch={ch} mangaId={mangaId} />
+          ))}
         </div>
       )}
 
@@ -234,6 +205,64 @@ export function ChapterList({ mangaId, mangaTitle, altTitles, lastChapter, anili
         </div>
       )}
     </div>
+  );
+}
+
+function ChapterRow({ ch, mangaId }: { ch: Chapter; mangaId: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const href =
+    ch.source === "mangadex"
+      ? `/read/${ch.id}?manga=${mangaId}`
+      : `/read/ext?manga=${mangaId}&source=${ch.source}&chapterId=${encodeURIComponent(ch.id)}`;
+
+  return (
+    <Link
+      href={href}
+      className="block rounded-md px-3 py-2.5 text-sm hover:bg-accent transition-colors"
+    >
+      <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0 flex-1">
+          <span className="font-medium shrink-0">
+            {ch.volume ? `Vol. ${ch.volume} ` : ""}
+            Ch. {ch.chapter ?? "—"}
+          </span>
+          {ch.title && (
+            <span
+              onClick={(e) => {
+                e.preventDefault();
+                setExpanded(!expanded);
+              }}
+              className={`text-muted-foreground cursor-pointer sm:cursor-default ${
+                expanded ? "" : "line-clamp-2 sm:truncate sm:max-w-[350px]"
+              }`}
+              title={ch.title}
+            >
+              {ch.title}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 sm:gap-3 text-xs text-muted-foreground shrink-0">
+          {ch.scanlationGroup && (
+            <span
+              className="hidden sm:inline truncate max-w-[120px]"
+              title={ch.scanlationGroup}
+            >
+              {ch.scanlationGroup}
+            </span>
+          )}
+          {ch.publishAt && (
+            <span className="whitespace-nowrap">
+              {new Date(ch.publishAt).toLocaleDateString()}
+            </span>
+          )}
+        </div>
+      </div>
+      {ch.scanlationGroup && (
+        <span className="sm:hidden text-xs text-muted-foreground mt-1 block">
+          {ch.scanlationGroup}
+        </span>
+      )}
+    </Link>
   );
 }
 
