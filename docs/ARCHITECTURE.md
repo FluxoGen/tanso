@@ -281,43 +281,59 @@ tanso/
 │
 ├── src/
 │   ├── app/                           # Next.js App Router
-│   │   ├── layout.tsx                 # Root layout: fonts, ThemeProvider, Navbar, <main> wrapper
-│   │   ├── page.tsx                   # Home page: genre chips + trending/popular/latest grids
+│   │   ├── layout.tsx                 # Root layout: fonts, ThemeProvider, Navbar, Footer, <main> wrapper
+│   │   ├── page.tsx                   # Home page: continue reading, tag filter, trending/popular/latest
 │   │   ├── search/
 │   │   │   └── page.tsx               # Search: query input, genre filters, paginated results
 │   │   ├── manga/
 │   │   │   └── [id]/
-│   │   │       └── page.tsx           # Manga detail: cover, metadata, AniList enrichment, chapter list
+│   │   │       └── page.tsx           # Manga detail: cover, metadata, AniList enrichment, library button, chapter list
 │   │   ├── read/
 │   │   │   ├── [chapterId]/
-│   │   │   │   └── page.tsx           # Reader: paged + longstrip modes, auto-detects webtoons, quality toggle
+│   │   │   │   └── page.tsx           # Reader: paged + longstrip modes, progress tracking, chapter navigation
 │   │   │   └── ext/
 │   │   │       └── page.tsx           # Consumet reader: query-param entry point for external sources
+│   │   ├── latest/
+│   │   │   └── page.tsx               # Latest manga with infinite scroll and tag filtering
+│   │   ├── library/
+│   │   │   └── page.tsx               # User's manga library with status tabs (reading, plan to read, etc.)
+│   │   ├── history/
+│   │   │   └── page.tsx               # Reading history with timeline grouping
 │   │   └── api/                       # Server-side API routes (proxy layer)
 │   │       ├── manga/
 │   │       │   ├── trending/route.ts  # GET — top-rated manga
 │   │       │   ├── popular/route.ts   # GET — most-followed manga
-│   │       │   ├── latest/route.ts    # GET — recently updated manga
+│   │       │   ├── latest/route.ts    # GET — recently updated manga with pagination
 │   │       │   ├── tags/route.ts      # GET — all MangaDex genre/theme tags
 │   │       │   └── [id]/
 │   │       │       ├── route.ts       # GET — manga details (MangaDex + AniList merged)
-│   │       │       ├── chapters/route.ts  # GET — multi-source chapter list via provider registry
+│   │       │       ├── chapters/route.ts  # GET — multi-source chapter list + chapter navigation
 │   │       │       └── sources/route.ts   # GET — source discovery (progressive loading)
 │   │       ├── chapter/
 │   │       │   ├── [id]/route.ts      # GET — MangaDex chapter page images
 │   │       │   └── resolve/route.ts   # GET — Consumet chapter page images (query-param based)
+│   │       ├── suggest/route.ts       # GET — search suggestions with cover/author/year
 │   │       ├── proxy-image/route.ts   # GET — secured image proxy (domain whitelist, SSRF prevention)
 │   │       └── search/route.ts        # GET — search with query + genre filters
 │   │
 │   ├── components/
 │   │   ├── ui/                        # shadcn/ui primitives (Button, Badge, Input, Skeleton, etc.)
-│   │   ├── navbar.tsx                 # Sticky top bar: logo, search bar, theme toggle
-│   │   ├── search-bar.tsx             # Search input with form submission
+│   │   ├── navbar.tsx                 # Sticky top bar: logo, nav links, search bar, theme toggle, mobile menu
+│   │   ├── footer.tsx                 # Footer with copyright and FluxoGen attribution
+│   │   ├── search-bar.tsx             # Search input with debounced suggestions dropdown
 │   │   ├── theme-toggle.tsx           # Dark/light mode switch button
-│   │   ├── genre-chips.tsx            # Horizontal scrollable genre pill selector
-│   │   ├── manga-card.tsx             # Single manga card (cover, title, author)
+│   │   ├── tag-filter.tsx             # Collapsible tag filter with genres, themes, demographic, rating
+│   │   ├── genre-chips.tsx            # Simple horizontal scrollable genre pill selector
+│   │   ├── manga-card.tsx             # Single manga card with content rating badges
 │   │   ├── manga-grid.tsx             # Responsive grid of MangaCard components
-│   │   └── chapter-list.tsx           # Multi-source chapter list with source tabs
+│   │   ├── chapter-list.tsx           # Multi-source chapter list with read/reading indicators
+│   │   ├── library-button.tsx         # Add to library button with status dropdown
+│   │   └── continue-reading.tsx       # Continue reading section with progress bars
+│   │
+│   ├── hooks/
+│   │   ├── useReadingProgress.ts      # Hook for auto-saving/retrieving reading progress
+│   │   ├── useLibrary.ts              # Hook for managing library bookmarks with status
+│   │   └── useHistory.ts              # Hook for tracking reading history
 │   │
 │   ├── lib/
 │   │   ├── providers/                 # Provider registry (extensible for anime/LN)
@@ -328,6 +344,8 @@ tanso/
 │   │   ├── mangadex.ts                # MangaDex API client — all fetch + normalize functions
 │   │   ├── anilist.ts                 # AniList GraphQL client — metadata enrichment
 │   │   ├── cache.ts                   # TTLCache for source discovery and chapter lists
+│   │   ├── storage.ts                 # LocalStorage utilities for progress, history, library
+│   │   ├── fetch-utils.ts             # fetchWithRetry helper with exponential backoff
 │   │   ├── matching.ts                # Title scoring algorithm for cross-provider matching
 │   │   └── utils.ts                   # Tailwind CSS utility (cn function from shadcn)
 │   │
@@ -335,7 +353,9 @@ tanso/
 │       ├── manga.ts                   # Manga, Chapter, MangaSource, ChapterPagesResponse, etc.
 │       └── anilist.ts                 # AniListMedia, AniListResponse
 │
-├── public/                            # Static assets
+├── public/
+│   └── images/
+│       └── fluxogen-logo.jpeg         # FluxoGen logo for footer
 ├── next.config.ts                     # Image remote patterns, serverExternalPackages
 ├── package.json                       # Dependencies and scripts
 ├── tsconfig.json                      # TypeScript configuration
@@ -433,19 +453,91 @@ graph TD
 
 ---
 
-## 7. API Route Map
+## 7. Storage Layer (Client-Side)
+
+```mermaid
+graph TD
+    subgraph hooks ["React Hooks"]
+        useProgress["useReadingProgress"]
+        useLib["useLibrary / useLibraryStatus"]
+        useHist["useHistory"]
+    end
+
+    subgraph storage ["src/lib/storage.ts"]
+        ProgressFns["getProgress / saveProgress / clearProgress"]
+        HistoryFns["getHistory / addToHistory / removeFromHistory"]
+        LibraryFns["getLibrary / addToLibrary / updateLibraryStatus"]
+        ChapterFns["isChapterRead / markChapterAsRead"]
+    end
+
+    subgraph localStorage ["Browser localStorage"]
+        ProgressKey["tanso:progress"]
+        HistoryKey["tanso:history"]
+        LibraryKey["tanso:library"]
+        ChapterKey["tanso:chapters_read"]
+    end
+
+    useProgress --> ProgressFns
+    useProgress --> ChapterFns
+    useLib --> LibraryFns
+    useHist --> HistoryFns
+
+    ProgressFns --> ProgressKey
+    HistoryFns --> HistoryKey
+    LibraryFns --> LibraryKey
+    ChapterFns --> ChapterKey
+```
+
+### Explanation
+
+The storage layer provides **client-side persistence** for user reading state without requiring authentication:
+
+1. **Reading Progress** (`tanso:progress`):
+   - Stores the current page position for each manga being read
+   - Updated on every page turn with debouncing (1 second delay)
+   - Used by the "Continue Reading" section on the home page
+   - Data: `{ mangaId, mangaTitle, coverUrl, chapterId, chapterNumber, page, totalPages, source, timestamp }`
+
+2. **Reading History** (`tanso:history`):
+   - Tracks the last 100 manga the user has read
+   - Updated when entering a chapter
+   - Grouped by date (Today, Yesterday, This Week, etc.) in the history page
+   - Data: `{ mangaId, title, coverUrl, lastChapterId, lastChapterNumber, source, lastReadAt }`
+
+3. **Library** (`tanso:library`):
+   - Bookmarking system with status categories: Reading, Plan to Read, Completed, On Hold, Dropped
+   - Accessible via the library button on manga detail pages
+   - Data: `{ mangaId, title, coverUrl, status, addedAt, updatedAt }`
+
+4. **Chapter Read Status** (`tanso:chapters_read`):
+   - Tracks which chapters have been completed (reached the last page)
+   - Displayed as visual indicators in the chapter list (checkmark for read, book icon for in-progress)
+   - Data: `{ [mangaId]: [chapterId, chapterId, ...] }`
+
+### Hooks
+
+Three React hooks wrap the storage layer with state management:
+
+- **`useReadingProgress(mangaId)`** — Returns current progress for a manga, with `updateProgress()` (debounced) and `flushProgress()` (immediate save) methods
+- **`useLibraryStatus(mangaId)`** — Returns library entry for a manga, with `add()`, `updateStatus()`, `remove()`, `toggle()` methods
+- **`useHistory()`** — Returns full history array, with `add()`, `remove()`, `clear()` methods and `groupHistoryByDate()` helper
+
+---
+
+## 8. API Route Map
 
 | Route | Method | Query Parameters | Upstream API | Description |
 |---|---|---|---|---|
-| `/api/manga/trending` | GET | `tags` (repeatable) | MangaDex `GET /manga` ordered by `rating desc` | Top-rated manga, optionally filtered by genre tags |
-| `/api/manga/popular` | GET | `tags` (repeatable) | MangaDex `GET /manga` ordered by `followedCount desc` | Most-followed manga, optionally filtered by genre tags |
-| `/api/manga/latest` | GET | `tags` (repeatable) | MangaDex `GET /manga` ordered by `latestUploadedChapter desc` | Recently updated manga, optionally filtered by genre tags |
+| `/api/manga/trending` | GET | `tags`, `ratings` (repeatable) | MangaDex `GET /manga` ordered by `rating desc` | Top-rated manga, optionally filtered by genre tags and content ratings |
+| `/api/manga/popular` | GET | `tags`, `ratings` (repeatable) | MangaDex `GET /manga` ordered by `followedCount desc` | Most-followed manga, optionally filtered by genre tags and content ratings |
+| `/api/manga/latest` | GET | `tags`, `ratings`, `limit`, `offset` (repeatable) | MangaDex `GET /manga` ordered by `latestUploadedChapter desc` | Recently updated manga with pagination and filters |
 | `/api/manga/tags` | GET | — | MangaDex `GET /manga/tag` | Full list of all genre/theme tags (cached in memory) |
 | `/api/manga/[id]` | GET | — | MangaDex `GET /manga/{id}` + AniList `POST /graphql` | Manga details merged with AniList metadata (score, banner, description) |
-| `/api/manga/[id]/chapters` | GET | `source`, `sourceId`, `page`, `lang` | Provider registry | Multi-source chapter list. MangaDex: server pagination. Others: full list, cached. |
+| `/api/manga/[id]/chapters` | GET | `source`, `sourceId`, `page`, `lang`, `chapterId` | Provider registry | Multi-source chapter list with chapter navigation (prev/next). MangaDex: server pagination. Others: full list, cached. |
 | `/api/manga/[id]/sources` | GET | `title` (required), `lastChapter`, `anilistId`, `status`, `altTitles` (pipe-separated) | Provider registry + scoring | Discovers available sources for a manga. Tries alternate titles as fallback if primary title yields no matches. Results cached 30 min. |
 | `/api/chapter/[id]` | GET | — | MangaDex `GET /at-home/server/{id}` | MangaDex chapter page images (ChapterPagesResponse, mangadex variant) |
 | `/api/chapter/resolve` | GET | `source`, `chapterId` | Provider registry | Consumet chapter page images (ChapterPagesResponse, external variant) |
+| `/api/suggest` | GET | `q` (query, min 2 chars) | MangaDex `GET /manga` | Search suggestions: returns top 6 results with cover, author, year for typeahead |
 | `/api/proxy-image` | GET | `url`, `source` | Direct fetch with domain whitelist | Secured image proxy. HTTPS-only, rate limited, server-side referer. |
 | `/api/search` | GET | `q` (query), `page` (default 1), `genres` (repeatable) | MangaDex `GET /manga` + AniList `POST /graphql` (fallback) | Search manga by title with optional genre filtering. Falls back to AniList for alt titles. |
 

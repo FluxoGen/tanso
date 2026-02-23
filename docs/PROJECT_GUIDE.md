@@ -23,8 +23,9 @@ A complete end-to-end explanation of how Tanso works, from the backend API clien
    - [Example 2: User Searches "Naruto" with Action Genre](#example-2-user-searches-naruto-with-action-genre)
    - [Example 3: User Opens a Manga Detail Page](#example-3-user-opens-a-manga-detail-page)
    - [Example 4: User Reads a Chapter](#example-4-user-reads-a-chapter)
-6. [Data Types](#6-data-types)
-7. [Theming — How Dark Mode Works](#7-theming--how-dark-mode-works)
+6. [Reading Progress, Library & History](#6-reading-progress-library--history)
+7. [Data Types](#7-data-types)
+8. [Theming — How Dark Mode Works](#8-theming--how-dark-mode-works)
 
 ---
 
@@ -637,7 +638,83 @@ Only shown for MangaDex chapters (which have two quality tiers). Hidden for Cons
 
 ---
 
-## 6. Data Types
+## 6. Reading Progress, Library & History
+
+Tanso provides client-side persistence for tracking reading progress without requiring user authentication. All data is stored in the browser's localStorage.
+
+### Reading Progress
+
+**Storage key:** `tanso:progress`
+
+Reading progress is automatically saved when reading chapters:
+
+1. **Auto-save on page turn:** The `useReadingProgress` hook saves progress with debouncing (1 second delay) to avoid excessive writes
+2. **Flush on exit:** When leaving a chapter, `flushProgress()` is called to ensure the final position is saved
+3. **Chapter completion:** When reaching the last page, the chapter is marked as read in `tanso:chapters_read`
+
+**Data flow:**
+```
+User turns page → updateProgress() → debounce 1s → saveProgress() → localStorage
+User leaves page → flushProgress() → immediate save → localStorage
+User reaches last page → markChapterAsRead() → localStorage
+```
+
+### Library (Bookmarks)
+
+**Storage key:** `tanso:library`
+
+Users can add manga to their library with status tracking:
+
+- **Reading:** Currently reading
+- **Plan to Read:** Want to read later
+- **Completed:** Finished reading
+- **On Hold:** Paused
+- **Dropped:** Stopped reading
+
+**UI components:**
+- `LibraryButton` (manga detail page) — dropdown to add/update status
+- `/library` page — grid view with status tabs
+- Visual badges on library cards showing current status
+
+### Reading History
+
+**Storage key:** `tanso:history`
+
+Automatically tracks the last 100 manga read:
+
+- Added when entering any chapter
+- Updated with latest chapter info
+- Grouped by date in the history page (Today, Yesterday, This Week, etc.)
+
+**UI components:**
+- `/history` page — timeline view with date groupings
+- "Continue" link to resume reading
+- Clear all button with confirmation
+
+### Continue Reading
+
+**Storage key:** `tanso:progress` (same as reading progress)
+
+The home page displays a "Continue Reading" section showing manga with saved progress:
+
+- Shows cover, title, chapter number, and progress percentage
+- Progress bar visualization
+- Click to resume at the saved page position
+
+### Chapter Read Indicators
+
+**Storage key:** `tanso:chapters_read`
+
+The chapter list shows visual indicators for read status:
+
+- **Checkmark icon:** Chapter completed (reached last page)
+- **Book icon:** Currently reading (has saved progress)
+- **No icon:** Unread
+- **Background colors:** Reading chapters have highlighted backgrounds
+
+---
+
+## 7. Data Types
 
 ### `Manga` (`src/types/manga.ts`)
 
@@ -744,7 +821,7 @@ A discriminated union type. Check `"hash" in response` to narrow:
 
 ---
 
-## 7. Theming — How Dark Mode Works
+## 8. Theming — How Dark Mode Works
 
 Dark mode is implemented using three technologies working together:
 

@@ -5,20 +5,38 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback, useRef, use, Suspense } from "react";
 import { Button } from "@/components/ui/button";
+import { useReadingProgress } from "@/hooks/useReadingProgress";
+import { addToHistory, markChapterAsRead } from "@/lib/storage";
+import { ChevronLeft, ChevronRight, Keyboard } from "lucide-react";
 import type { ChapterPagesResponse } from "@/types/manga";
 
 type ReadingMode = "paged" | "longstrip";
 
+interface ChapterNavInfo {
+  prevChapterId: string | null;
+  nextChapterId: string | null;
+  chapterNumber: string | null;
+  chapterTitle: string | null;
+}
+
 function ReaderContent({ chapterId, source }: { chapterId: string; source: string }) {
   const searchParams = useSearchParams();
   const mangaId = searchParams.get("manga");
+  const mangaTitle = searchParams.get("title") || "Manga";
+  const coverUrl = searchParams.get("cover") || null;
+  const initialPage = parseInt(searchParams.get("page") || "0", 10);
 
   const [pages, setPages] = useState<ChapterPagesResponse | null>(null);
-  const [currentPage, setCurrentPage] = useState(0);
+  const [currentPage, setCurrentPage] = useState(initialPage);
   const [quality, setQuality] = useState<"data" | "data-saver">("data");
   const [loading, setLoading] = useState(true);
   const [readingMode, setReadingMode] = useState<ReadingMode>("paged");
+  const [chapterNav, setChapterNav] = useState<ChapterNavInfo | null>(null);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const probeRef = useRef(false);
+
+  // Reading progress hook
+  const { updateProgress, flushProgress, completeChapter } = useReadingProgress(mangaId);
 
   useEffect(() => {
     let url: string;
@@ -34,11 +52,28 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
       .then((r) => r.json())
       .then((json) => {
         setPages(json);
-        setCurrentPage(0);
+        // Keep initial page if provided, otherwise reset to 0
+        if (initialPage === 0) {
+          setCurrentPage(0);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [chapterId, source]);
+  }, [chapterId, source, initialPage]);
+
+  // Fetch chapter navigation info
+  useEffect(() => {
+    if (!mangaId || source !== "mangadex") return;
+    
+    fetch(`/api/manga/${mangaId}/chapters?chapterId=${chapterId}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.nav) {
+          setChapterNav(json.nav);
+        }
+      })
+      .catch(() => {});
+  }, [mangaId, chapterId, source]);
 
   const isMangaDex = pages != null && "hash" in pages;
   const totalPages = (() => {
@@ -88,23 +123,86 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
       if (page >= 0 && page < totalPages) {
         setCurrentPage(page);
         window.scrollTo({ top: 0, behavior: "instant" });
+
+        // Save progress
+        if (mangaId) {
+          updateProgress({
+            mangaId,
+            mangaTitle,
+            coverUrl,
+            chapterId,
+            chapterNumber: chapterNav?.chapterNumber || null,
+            chapterTitle: chapterNav?.chapterTitle || null,
+            page,
+            totalPages,
+            source,
+          });
+        }
       }
     },
-    [totalPages],
+    [totalPages, mangaId, mangaTitle, coverUrl, chapterId, chapterNav, source, updateProgress],
   );
 
+  // Add to history when entering chapter
   useEffect(() => {
-    if (readingMode !== "paged") return;
+    if (mangaId && pages && totalPages > 0) {
+      addToHistory({
+        mangaId,
+        title: mangaTitle,
+        coverUrl,
+        lastChapterId: chapterId,
+        lastChapterNumber: chapterNav?.chapterNumber || null,
+        lastChapterTitle: chapterNav?.chapterTitle || null,
+        source,
+      });
+    }
+  }, [mangaId, mangaTitle, coverUrl, chapterId, chapterNav, source, pages, totalPages]);
+
+  // Mark chapter as read when reaching last page
+  useEffect(() => {
+    if (mangaId && currentPage >= totalPages - 1 && totalPages > 0) {
+      completeChapter(chapterId);
+      markChapterAsRead(mangaId, chapterId);
+    }
+  }, [mangaId, currentPage, totalPages, chapterId, completeChapter]);
+
+  // Save progress when leaving page
+  useEffect(() => {
+    return () => {
+      flushProgress();
+    };
+  }, [flushProgress]);
+
+  useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      // Show/hide keyboard help
+      if (e.key === "?" || e.key === "h" || e.key === "H") {
+        setShowKeyboardHelp((v) => !v);
+        return;
+      }
+      if (e.key === "Escape") {
+        setShowKeyboardHelp(false);
+        return;
+      }
+
+      if (readingMode !== "paged") return;
+      
       if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
         goTo(currentPage + 1);
       } else if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
         goTo(currentPage - 1);
       }
+      // Chapter navigation with brackets or shift+arrows
+      if ((e.key === "]" || (e.shiftKey && e.key === "ArrowRight")) && chapterNav?.nextChapterId) {
+        window.location.href = `/read/${chapterNav.nextChapterId}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`;
+      }
+      if ((e.key === "[" || (e.shiftKey && e.key === "ArrowLeft")) && chapterNav?.prevChapterId) {
+        window.location.href = `/read/${chapterNav.prevChapterId}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`;
+      }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [currentPage, goTo, readingMode]);
+  }, [currentPage, goTo, readingMode, chapterNav, mangaId, mangaTitle, coverUrl]);
 
   // Preload next pages (paged mode only)
   useEffect(() => {
@@ -144,6 +242,13 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
 
   const currentUrl = getImageUrl(currentPage);
 
+  const prevChapterUrl = chapterNav?.prevChapterId
+    ? `/read/${chapterNav.prevChapterId}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`
+    : null;
+  const nextChapterUrl = chapterNav?.nextChapterId
+    ? `/read/${chapterNav.nextChapterId}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`
+    : null;
+
   const toolbar = (
     <div className="flex items-center justify-between gap-2 flex-wrap">
       <div className="flex items-center gap-2">
@@ -157,6 +262,25 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
             </Button>
           </Link>
         )}
+
+        {/* Chapter Navigation */}
+        {prevChapterUrl && (
+          <Link href={prevChapterUrl}>
+            <Button variant="outline" size="sm" title="Previous chapter ([)">
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1">Prev Ch.</span>
+            </Button>
+          </Link>
+        )}
+        {nextChapterUrl && (
+          <Link href={nextChapterUrl}>
+            <Button variant="outline" size="sm" title="Next chapter (])">
+              <span className="hidden sm:inline mr-1">Next Ch.</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        )}
+
         {readingMode === "paged" && (
           <span className="text-sm text-muted-foreground">
             Page {currentPage + 1} of {totalPages}
@@ -170,6 +294,14 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
       </div>
 
       <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowKeyboardHelp(true)}
+          title="Keyboard shortcuts (?)"
+        >
+          <Keyboard className="h-4 w-4" />
+        </Button>
         <Button
           variant="outline"
           size="sm"
@@ -191,10 +323,51 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
     </div>
   );
 
+  const keyboardHelpModal = showKeyboardHelp && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowKeyboardHelp(false)}>
+      <div className="bg-popover rounded-lg shadow-xl p-6 max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Keyboard className="h-5 w-5" />
+          Keyboard Shortcuts
+        </h3>
+        <div className="space-y-3 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Next page</span>
+            <span className="font-mono">→ or D</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Previous page</span>
+            <span className="font-mono">← or A</span>
+          </div>
+          <div className="border-t pt-3 flex justify-between">
+            <span className="text-muted-foreground">Next chapter</span>
+            <span className="font-mono">] or Shift+→</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Previous chapter</span>
+            <span className="font-mono">[ or Shift+←</span>
+          </div>
+          <div className="border-t pt-3 flex justify-between">
+            <span className="text-muted-foreground">Toggle this help</span>
+            <span className="font-mono">? or H</span>
+          </div>
+        </div>
+        <Button
+          className="w-full mt-6"
+          variant="outline"
+          onClick={() => setShowKeyboardHelp(false)}
+        >
+          Close
+        </Button>
+      </div>
+    </div>
+  );
+
   if (readingMode === "longstrip") {
     return (
       <div className="space-y-4">
         {toolbar}
+        {keyboardHelpModal}
 
         <div className="flex flex-col items-center gap-0">
           {Array.from({ length: totalPages }).map((_, i) => (
@@ -211,20 +384,43 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
           ))}
         </div>
 
-        <div className="flex items-center justify-center py-4">
-          {mangaId && (
-            <Link href={`/manga/${mangaId}`}>
-              <Button variant="outline" size="sm">Back to manga</Button>
-            </Link>
-          )}
+        {/* End of Chapter Navigation */}
+        <div className="flex flex-col items-center gap-4 py-8 border-t">
+          <p className="text-muted-foreground">End of chapter</p>
+          <div className="flex items-center gap-3">
+            {prevChapterUrl && (
+              <Link href={prevChapterUrl}>
+                <Button variant="outline">
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous Chapter
+                </Button>
+              </Link>
+            )}
+            {mangaId && (
+              <Link href={`/manga/${mangaId}`}>
+                <Button variant="outline">Back to manga</Button>
+              </Link>
+            )}
+            {nextChapterUrl && (
+              <Link href={nextChapterUrl}>
+                <Button>
+                  Next Chapter
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     );
   }
 
+  const isLastPage = currentPage >= totalPages - 1;
+
   return (
     <div className="space-y-4">
       {toolbar}
+      {keyboardHelpModal}
 
       <div
         className="relative flex items-center justify-center cursor-pointer select-none min-h-[50vh]"
@@ -283,8 +479,38 @@ function ReaderContent({ chapterId, source }: { chapterId: string; source: strin
       </div>
 
       <p className="text-center text-xs text-muted-foreground">
-        Use ← → arrow keys or click left/right side of the image to navigate
+        Use ← → arrow keys or click left/right side of the image to navigate · Press ? for shortcuts
       </p>
+
+      {/* End of Chapter Navigation */}
+      {isLastPage && (
+        <div className="flex flex-col items-center gap-4 py-8 border-t">
+          <p className="text-lg font-medium">Chapter Complete!</p>
+          <div className="flex items-center gap-3 flex-wrap justify-center">
+            {prevChapterUrl && (
+              <Link href={prevChapterUrl}>
+                <Button variant="outline">
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous Chapter
+                </Button>
+              </Link>
+            )}
+            {mangaId && (
+              <Link href={`/manga/${mangaId}`}>
+                <Button variant="outline">Back to manga</Button>
+              </Link>
+            )}
+            {nextChapterUrl && (
+              <Link href={nextChapterUrl}>
+                <Button>
+                  Next Chapter
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

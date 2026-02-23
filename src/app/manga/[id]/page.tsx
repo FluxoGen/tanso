@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChapterList } from "@/components/chapter-list";
+import { LibraryButton } from "@/components/library-button";
 import { getCoverUrl } from "@/lib/mangadex";
-import type { Manga } from "@/types/manga";
+import type { Manga, MangaTag } from "@/types/manga";
 import type { AniListMedia } from "@/types/anilist";
 
 interface MangaDetailData {
@@ -37,7 +38,18 @@ export default function MangaDetailPage({ params }: { params: Promise<{ id: stri
   const bannerUrl = anilist?.bannerImage;
   const description = anilist?.description || manga.description;
   const score = anilist?.averageScore;
-  const genres = manga.tags.filter((t) => t.group === "genre");
+  
+  // Group tags by category
+  const tagsByGroup = manga.tags.reduce((acc, tag) => {
+    if (!acc[tag.group]) acc[tag.group] = [];
+    acc[tag.group].push(tag);
+    return acc;
+  }, {} as Record<string, MangaTag[]>);
+
+  const genres = tagsByGroup["genre"] || [];
+  const themes = tagsByGroup["theme"] || [];
+  const demographics = tagsByGroup["demographic"] || [];
+  const formats = tagsByGroup["format"] || [];
 
   const altTitles = Array.from(
     new Set(
@@ -89,14 +101,23 @@ export default function MangaDetailPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
 
-          {genres.length > 0 && (
-            <div className="flex flex-wrap justify-center sm:justify-start gap-1.5">
-              {genres.map((g) => (
-                <Badge key={g.id} variant="secondary" className="text-xs">
-                  {g.name}
-                </Badge>
-              ))}
-            </div>
+          {/* Library Button */}
+          <div className="flex justify-center sm:justify-start pt-2">
+            <LibraryButton
+              mangaId={manga.id}
+              title={manga.title}
+              coverUrl={manga.coverFileName}
+            />
+          </div>
+
+          {/* Tags grouped by category */}
+          <TagSection label="Genres" tags={genres} variant="default" />
+          <TagSection label="Themes" tags={themes} variant="outline" />
+          {demographics.length > 0 && (
+            <TagSection label="Demographic" tags={demographics} variant="secondary" />
+          )}
+          {formats.length > 0 && (
+            <TagSection label="Format" tags={formats} variant="outline" />
           )}
 
           {description && (
@@ -176,6 +197,33 @@ function ExpandableDescription({ html }: { html: string }) {
           {expanded ? "Show less" : "Read full description"}
         </Button>
       )}
+    </div>
+  );
+}
+
+function TagSection({
+  label,
+  tags,
+  variant = "default",
+}: {
+  label: string;
+  tags: MangaTag[];
+  variant?: "default" | "secondary" | "outline";
+}) {
+  if (tags.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </h3>
+      <div className="flex flex-wrap justify-center sm:justify-start gap-1.5">
+        {tags.map((t) => (
+          <Badge key={t.id} variant={variant} className="text-xs">
+            {t.name}
+          </Badge>
+        ))}
+      </div>
     </div>
   );
 }

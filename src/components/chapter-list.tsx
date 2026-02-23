@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getReadChapters, getProgress } from "@/lib/storage";
+import { Check, BookOpen } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Chapter, MangaSource } from "@/types/manga";
 
 interface ChapterListProps {
@@ -25,7 +28,20 @@ export function ChapterList({ mangaId, mangaTitle, altTitles, lastChapter, anili
   const [loading, setLoading] = useState(true);
   const [sourcesLoading, setSourcesLoading] = useState(true);
   const [chapterError, setChapterError] = useState<string | null>(null);
+  const [readChapters, setReadChapters] = useState<Set<string>>(new Set());
+  const [currentReadingChapter, setCurrentReadingChapter] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Load read chapter status
+  useEffect(() => {
+    const readList = getReadChapters(mangaId);
+    setReadChapters(new Set(readList));
+    
+    const progress = getProgress(mangaId);
+    if (progress) {
+      setCurrentReadingChapter(progress.chapterId);
+    }
+  }, [mangaId]);
 
   // Discover sources progressively
   useEffect(() => {
@@ -175,7 +191,14 @@ export function ChapterList({ mangaId, mangaTitle, altTitles, lastChapter, anili
       ) : (
         <div className="space-y-1">
           {displayChapters.map((ch) => (
-            <ChapterRow key={`${ch.source}:${ch.id}`} ch={ch} mangaId={mangaId} />
+            <ChapterRow
+              key={`${ch.source}:${ch.id}`}
+              ch={ch}
+              mangaId={mangaId}
+              mangaTitle={mangaTitle}
+              isRead={readChapters.has(ch.id)}
+              isReading={ch.id === currentReadingChapter}
+            />
           ))}
         </div>
       )}
@@ -208,25 +231,50 @@ export function ChapterList({ mangaId, mangaTitle, altTitles, lastChapter, anili
   );
 }
 
-function ChapterRow({ ch, mangaId }: { ch: Chapter; mangaId: string }) {
+interface ChapterRowProps {
+  ch: Chapter;
+  mangaId: string;
+  mangaTitle: string;
+  isRead: boolean;
+  isReading: boolean;
+}
+
+function ChapterRow({ ch, mangaId, mangaTitle, isRead, isReading }: ChapterRowProps) {
   const href =
     ch.source === "mangadex"
-      ? `/read/${ch.id}?manga=${mangaId}`
-      : `/read/ext?manga=${mangaId}&source=${ch.source}&chapterId=${encodeURIComponent(ch.id)}`;
+      ? `/read/${ch.id}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}`
+      : `/read/ext?manga=${mangaId}&source=${ch.source}&chapterId=${encodeURIComponent(ch.id)}&title=${encodeURIComponent(mangaTitle)}`;
 
   return (
     <Link
       href={href}
-      className="block rounded-md px-3 py-2.5 text-sm hover:bg-accent transition-colors"
+      className={cn(
+        "block rounded-md px-3 py-2.5 text-sm transition-colors relative",
+        isReading
+          ? "bg-primary/10 hover:bg-primary/15 border-l-2 border-primary"
+          : isRead
+          ? "bg-muted/50 hover:bg-accent"
+          : "hover:bg-accent"
+      )}
     >
       <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0 flex-1">
-          <span className="font-medium shrink-0">
-            {ch.volume ? `Vol. ${ch.volume} ` : ""}
-            Ch. {ch.chapter ?? "—"}
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Read status indicator */}
+            {isReading ? (
+              <BookOpen className="h-4 w-4 text-primary" />
+            ) : isRead ? (
+              <Check className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <span className="w-4" />
+            )}
+            <span className={cn("font-medium", isRead && !isReading && "text-muted-foreground")}>
+              {ch.volume ? `Vol. ${ch.volume} ` : ""}
+              Ch. {ch.chapter ?? "—"}
+            </span>
+          </div>
           {ch.title && (
-            <span className="text-muted-foreground break-words">
+            <span className={cn("break-words", isRead && !isReading ? "text-muted-foreground/70" : "text-muted-foreground")}>
               {ch.title}
             </span>
           )}
@@ -245,7 +293,7 @@ function ChapterRow({ ch, mangaId }: { ch: Chapter; mangaId: string }) {
         </div>
       </div>
       {ch.scanlationGroup && (
-        <span className="sm:hidden text-xs text-muted-foreground mt-1 block">
+        <span className="sm:hidden text-xs text-muted-foreground mt-1 block ml-6">
           {ch.scanlationGroup}
         </span>
       )}
