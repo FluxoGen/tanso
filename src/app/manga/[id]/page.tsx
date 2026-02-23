@@ -53,25 +53,25 @@ export default function MangaDetailPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="space-y-6">
       {bannerUrl && (
-        <div className="relative h-48 md:h-64 -mx-4 -mt-6 overflow-hidden">
-          <Image src={bannerUrl} alt="" fill className="object-cover" priority />
+        <div className="relative h-40 sm:h-48 md:h-64 -mx-4 -mt-6 w-[calc(100%+2rem)] overflow-hidden">
+          <Image src={bannerUrl} alt="" fill className="object-cover object-center" priority />
           <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-6">
+      <div className="flex flex-col items-center sm:items-start sm:flex-row gap-6">
         {coverUrl && (
-          <div className="relative shrink-0 w-40 sm:w-48 aspect-[3/4] rounded-lg overflow-hidden shadow-lg self-start">
+          <div className="relative shrink-0 w-36 sm:w-48 aspect-[3/4] rounded-lg overflow-hidden shadow-lg">
             <Image src={coverUrl} alt={manga.title} fill className="object-cover" priority />
           </div>
         )}
 
-        <div className="flex-1 space-y-3">
+        <div className="flex-1 space-y-3 text-center sm:text-left">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{manga.title}</h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 text-sm">
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-sm">
             {manga.authorName && (
               <span className="text-muted-foreground">
                 By <span className="font-medium text-foreground">{manga.authorName}</span>
@@ -90,7 +90,7 @@ export default function MangaDetailPage({ params }: { params: Promise<{ id: stri
           </div>
 
           {genres.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap justify-center sm:justify-start gap-1.5">
               {genres.map((g) => (
                 <Badge key={g.id} variant="secondary" className="text-xs">
                   {g.name}
