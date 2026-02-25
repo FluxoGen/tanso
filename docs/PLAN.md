@@ -23,6 +23,7 @@ Living document tracking the current state, completed work, upcoming features, a
 The application is a fully functional manga reader powered by MangaDex, AniList, and MangaPill (via @consumet/extensions). Users can discover manga through trending/popular/latest feeds, filter by genre/theme/demographic/content rating, search by title with typeahead suggestions, view manga detail pages with enriched metadata and alternate titles, choose from multiple chapter sources, and read chapters in either paged mode or vertical scroll (webtoon) mode with keyboard navigation, quality selection, and automatic progress tracking.
 
 **What works:**
+
 - Home page with tag filtering (genres, themes, demographics, content ratings) and three curated manga sections
 - Continue Reading section showing manga with saved progress
 - Dedicated Latest page with infinite scroll/pagination toggle and filters
@@ -59,6 +60,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - Footer with FluxoGen attribution and logo
 
 **What is not built yet:**
+
 - User authentication
 - Database (server-side persistence layer)
 - Server-side reading progress / library sync
@@ -67,43 +69,48 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 
 ## 2. Tech Stack
 
-| Layer | Technology | Version |
-|---|---|---|
-| Framework | Next.js (App Router) | 16.1.6 |
-| Language | TypeScript | 5.x |
-| Styling | Tailwind CSS v4 + shadcn/ui | 4.2.0 |
-| Theming | next-themes | 0.4.6 |
-| Primary API | MangaDex REST API | v5 |
-| Secondary Sources | @consumet/extensions (MangaPill) | 1.8.8 |
-| Metadata API | AniList GraphQL API | v2 |
-| Package Manager | pnpm | 10.22.0 |
-| Runtime | Node.js | 18.17+ |
+| Layer             | Technology                       | Version |
+| ----------------- | -------------------------------- | ------- |
+| Framework         | Next.js (App Router)             | 16.1.6  |
+| Language          | TypeScript                       | 5.x     |
+| Styling           | Tailwind CSS v4 + shadcn/ui      | 4.2.0   |
+| Theming           | next-themes                      | 0.4.6   |
+| Primary API       | MangaDex REST API                | v5      |
+| Secondary Sources | @consumet/extensions (MangaPill) | 1.8.8   |
+| Metadata API      | AniList GraphQL API              | v2      |
+| Package Manager   | pnpm                             | 10.22.0 |
+| Runtime           | Node.js                          | 18.17+  |
 
 ---
 
 ## 3. Completed Milestones
 
 ### Milestone 1: Project Setup
+
 - Initialized Next.js 15 with App Router, TypeScript, Tailwind CSS v4, ESLint
 - Configured shadcn/ui with Button, Badge, Input, Skeleton, ScrollArea, Separator components
 - Set up next-themes for dark mode support
 - Configured `next.config.ts` with image remote patterns for MangaDex and AniList CDN domains
 
 ### Milestone 2: TypeScript Types
+
 - Defined `Manga`, `MangaTag`, `Chapter`, `PaginatedResponse` in `src/types/manga.ts`
 - Defined `AniListMedia`, `AniListResponse` in `src/types/anilist.ts`
 
 ### Milestone 3: MangaDex API Client
+
 - Built `src/lib/mangadex.ts` with functions: `searchManga`, `getMangaDetails`, `getMangaChapters`, `getChapterPages`, `getMangaTags`, `getPopularManga`, `getLatestManga`, `getTrendingManga`, `getCoverUrl`
 - Implemented data normalization (`normalizeManga`, `normalizeChapter`) to transform raw API responses into clean TypeScript types
 - Implemented multilingual title resolution with English preferred, Japanese fallback
 - Added in-memory caching for tag list
 
 ### Milestone 4: AniList API Client
+
 - Built `src/lib/anilist.ts` with `searchAniListManga` function
 - GraphQL query fetches: scores, genres, tags, descriptions, banner images, cover images, recommendations, publication metadata
 
 ### Milestone 5: API Routes (Backend Proxy)
+
 - Created 8 API route handlers under `src/app/api/`
 - `/api/manga/trending`, `/api/manga/popular`, `/api/manga/latest` — curated feeds with optional tag filtering
 - `/api/manga/tags` — cached tag list
@@ -113,19 +120,22 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - `/api/search` — search with query + genre filters
 
 ### Milestone 6: Layout and Navigation
+
 - Root layout with ThemeProvider, Geist fonts, responsive max-width container
 - Sticky Navbar with logo, centered SearchBar, ThemeToggle
 - SearchBar submits to `/search?q=...`
 - ThemeToggle switches between dark/light with sun/moon icons
 
 ### Milestone 7: Genre Chips Component
-- Reusable `GenreChips` component fetches tags from `/api/manga/tags`
+
+- Reusable `TagFilter` component fetches tags from `/api/manga/tags`
 - Filters to `group === "genre"` tags, sorts alphabetically
 - Horizontal scrollable chip bar with "All" default option
 - Multi-select toggle (filled for active, outline for inactive)
 - Loading skeleton while tags load
 
 ### Milestone 8: Home Page
+
 - Genre chip bar at top for filtering all sections
 - Three sections: Trending, Most Popular, Latest Updates
 - Each section fetches from its respective API route with selected tags
@@ -133,6 +143,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - `MangaGrid` renders responsive grid (2-5 columns), `MangaCard` shows cover, title, author, content rating badge
 
 ### Milestone 9: Search Page
+
 - Full search form with text input and Search button
 - Genre chips for filtering
 - URL-driven state (`?q=...&genres=...&page=1`)
@@ -141,6 +152,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - Wrapped in Suspense for `useSearchParams` compatibility
 
 ### Milestone 10: Manga Detail Page
+
 - AniList banner image with gradient overlay (when available)
 - Cover image from MangaDex (512px quality)
 - Title + alt title, author/artist, year, status badge, AniList score badge
@@ -150,6 +162,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - Full loading skeleton
 
 ### Milestone 11: Chapter Reader
+
 - Page-by-page reading with single image display
 - Keyboard navigation: Arrow keys and A/D keys
 - Click navigation: left half = previous, right half = next
@@ -161,6 +174,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - Loading spinner and empty state handling
 
 ### Milestone 12: Dark Mode
+
 - `next-themes` with `attribute="class"` and `enableSystem`
 - System preference detection (auto dark/light based on OS setting)
 - Manual toggle via ThemeToggle component
@@ -168,12 +182,14 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - All components use Tailwind `dark:` variants via shadcn/ui CSS variables
 
 ### Milestone 13: Remove Content Rating Filter
+
 - Removed content rating restrictions from all MangaDex API calls
 - All functions (`searchManga`, `getPopularManga`, `getLatestManga`, `getTrendingManga`) now include all four content ratings: `safe`, `suggestive`, `erotica`, `pornographic`
 - Extracted a shared `appendContentRatings()` helper to avoid duplication
 - Previously, search only returned `safe` manga, and feeds only returned `safe` + `suggestive`, causing manga like "Kusozako Boukou Oshii-san" (rated `erotica`) to be invisible
 
 ### Milestone 14: Documentation
+
 - Created `docs/` folder with 4 documentation files
 - `ARCHITECTURE.md` — system diagrams, data flows, design rationale
 - `COMMANDS.md` — all development and maintenance commands
@@ -182,6 +198,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - Rewrote `README.md` as concise overview with links to docs
 
 ### Milestone 15: AniList-Augmented Search
+
 - MangaDex's `title` parameter only matches primary titles, not alt titles. This means searching an English name (e.g., "Please Leave Me Alone…") fails when the primary title is a Japanese romanized string. Even when MangaDex returns some results, they may be irrelevant partial matches rather than the manga the user intended.
 - Enhanced `/api/search` to run MangaDex and AniList searches in parallel on every query
 - When AniList identifies a canonical title (romaji or English) that differs from the user's query, a secondary MangaDex search is performed with that title
@@ -189,6 +206,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - When AniList's titles match the user's query (or AniList finds no match), the original MangaDex results are returned directly — no extra work
 
 ### Milestone 16: Multi-Source Chapter Integration
+
 - Installed `@consumet/extensions` and `got-scraping` for scraping support
 - Created **Provider Registry** (`src/lib/providers/`) with `ContentProvider` interface, `MangaDexProvider`, and `MangaPillProvider` wrappers
 - Switched from MangaReader (502 errors) to MangaPill as the secondary provider
@@ -209,6 +227,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - Removed dead `getPageUrl` export and relocated `ChapterPages` interface to internal `MangaDexChapterPages` type
 
 ### Milestone 17: Reader & UX Improvements
+
 - **MangaPill image proxy:** Set `needsImageProxy = true` on MangaPill provider. Reader routes MangaPill images through `/api/proxy-image` (CDN requires `Referer: https://mangapill.com/` header). Added `PROXIED_SOURCES` set in reader for source-aware proxy routing.
 - **Webtoon long-strip mode:** Added `ReadingMode = "paged" | "longstrip"` to the reader. Auto-detects webtoon format by probing the second image's aspect ratio (height/width > 3). Long-strip mode stacks all images vertically at full width with lazy loading. Manual toggle between "Paged" and "Scroll" via toolbar button.
 - **Expandable description:** `ExpandableDescription` component sanitizes AniList HTML (keeps `<i>`, `<b>`, `<em>`, `<strong>`, `<br>`, strips all others), renders via `dangerouslySetInnerHTML`, clamps to 4 lines with "Read full description" / "Show less" toggle. Uses `useCallback` ref to detect overflow.
@@ -218,6 +237,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - **Fallback alt-title search:** Sources API now accepts `altTitles` param (pipe-separated). `ChapterList` passes AniList alternate titles. Source discovery tries alternate titles sequentially if primary MangaDex title yields no external matches — fixes cases where romanization differences or provider-specific naming caused missed matches.
 
 ### Milestone 18: Reading Progress, Library & History
+
 - **LocalStorage utilities** (`src/lib/storage.ts`) — Type-safe functions for reading progress, history, library, and chapter read status. All data stored under `tanso:*` keys.
 - **React hooks** (`src/hooks/`) — `useReadingProgress` (debounced auto-save), `useLibrary` / `useLibraryStatus` (bookmark management), `useHistory` (reading history with date grouping).
 - **Reading progress tracking** — Auto-saves page position on every page turn with 1-second debounce. Flushes on page exit. Marks chapters as read when reaching the last page.
@@ -227,6 +247,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - **Chapter read indicators** — Visual indicators in chapter list: checkmark (completed), book icon (in-progress), highlighted background (currently reading).
 
 ### Milestone 19: Enhanced Filtering & Navigation
+
 - **Tag Filter component** (`src/components/tag-filter.tsx`) — Collapsible sections for Genres, Themes, Demographic, and Content Rating. Active filter badges with clear all button.
 - **Content rating filter** — Filter manga by Safe, Suggestive, Erotica, 18+ ratings. Integrated into home page and latest page.
 - **URL state for filters** — Home page filter selections persisted in URL (`?tag=...&rating=...`) for shareable/refreshable state.
@@ -235,6 +256,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - **Footer** — Added copyright and FluxoGen attribution with logo.
 
 ### Milestone 20: Search & Reader Enhancements
+
 - **Search suggestions** — Debounced typeahead dropdown showing top 6 results with cover, title, author, year. Keyboard navigation support. `/api/suggest` endpoint.
 - **Chapter navigation in reader** — Previous/Next chapter buttons in toolbar. End-of-chapter navigation panel. Keyboard shortcuts (`[`/`]` or `Shift+←`/`→`).
 - **Keyboard shortcuts help** — Press `?` or `H` in reader to show keyboard shortcuts modal.
@@ -244,6 +266,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - **Content rating badges** — Color-coded badges on manga cards: Suggestive (default), Erotica (orange), 18+ (red).
 
 ### Milestone 21: UI/UX Polish & Mobile Improvements
+
 - **View mode toggle** — Latest and Search pages have Scroll (infinite) / Pages (paginated) toggle with smooth transitions.
 - **Page number input** — Direct page navigation by typing page number (Enter or blur to navigate) on Latest and Search pages.
 - **Scroll-to-top button** — Floating button appears after scrolling 300px on Latest, Search, and Reader (longstrip mode) pages.
@@ -263,6 +286,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 These features are not yet implemented. They are listed in rough priority order.
 
 ### Phase 2: Server-Side Persistence
+
 - **Database setup** — Add PostgreSQL (or SQLite for simplicity) with an ORM like Prisma or Drizzle
 - **User authentication** — Email/password or OAuth (GitHub, Google) sign-up and login
 - **Server-side sync** — Sync client-side reading progress, library, and history to user accounts
@@ -270,6 +294,7 @@ These features are not yet implemented. They are listed in rough priority order.
 > **Note:** Client-side persistence (localStorage) for bookmarks, reading history, and reading progress is already implemented in Milestone 18. Phase 2 focuses on server-side sync for cross-device access.
 
 ### Phase 3: Enhanced Reader
+
 - ~~**Long strip mode**~~ — ✅ Implemented in Milestone 17 (auto-detects webtoons, manual toggle)
 - ~~**Chapter navigation**~~ — ✅ Implemented in Milestone 20 (prev/next buttons, keyboard shortcuts)
 - **Chapter preloading** — When nearing the end of a chapter, preload the next chapter's metadata
@@ -278,12 +303,14 @@ These features are not yet implemented. They are listed in rough priority order.
 - **Reading settings** — Configurable background color, image fit mode, reading direction (LTR/RTL)
 
 ### Phase 4: Discovery & Social
+
 - **Recommendations section** — Show AniList recommendations on the detail page
 - **Related manga** — Display related manga from MangaDex relationships
 - ~~**Advanced filters**~~ — ✅ Implemented in Milestone 19 (genre, theme, demographic, content rating filters)
 - ~~**Infinite scroll**~~ — ✅ Implemented on Latest and Search pages with view mode toggle in Milestone 21
 
 ### Phase 5: Performance & Polish
+
 - **Server-side caching** — Cache MangaDex responses with TTL (trending/popular change slowly)
 - **ISR (Incremental Static Regeneration)** — Pre-render popular manga detail pages
 - **Image optimization** — Use Next.js Image optimization for cover images (currently `unoptimized` for reader pages)
@@ -295,29 +322,36 @@ These features are not yet implemented. They are listed in rough priority order.
 ## 5. Design Decisions Log
 
 ### Decision: Client-side rendering for all pages
+
 **Choice:** All page components use `"use client"`.
 **Rationale:** Every page involves interactive state (genre filtering, page navigation, search input). Server Components would require lifting all interactivity into client component islands, adding complexity without meaningful benefit since all data comes from external APIs (no database queries to optimize).
 
 ### Decision: API proxy through Next.js route handlers
+
 **Choice:** All external API calls go through `/api/*` routes instead of being called directly from client components.
 **Rationale:** MangaDex blocks CORS from browsers. Additionally, the proxy enables data merging (MangaDex + AniList on the detail page), server-side caching, and keeps API orchestration logic out of React components.
 
 ### Decision: MangaDex as primary API, AniList as supplement
+
 **Choice:** MangaDex provides all content (chapters, images, search). AniList only enriches the detail page.
 **Rationale:** MangaDex is the only free API that provides actual chapter images for reading. AniList has richer metadata (scores, descriptions, banners) but no chapter content. Using both gives the best user experience.
 
 ### Decision: URL-driven state for search
+
 **Choice:** Search query, genre filters, and page number are stored in URL search params, not React state.
 **Rationale:** Makes search results shareable via URL, supports browser back/forward navigation naturally, and allows deep-linking to specific search results.
 
 ### Decision: pnpm over npm/yarn
+
 **Choice:** pnpm as the package manager.
 **Rationale:** Faster installs via content-addressable storage, stricter dependency resolution (prevents phantom dependencies), and disk space efficiency through hard linking.
 
 ### Decision: Tailwind CSS v4 + shadcn/ui
+
 **Choice:** Tailwind for utility styling, shadcn/ui for pre-built accessible components.
 **Rationale:** Tailwind v4 is faster and requires less configuration. shadcn/ui components are copied into the project (not a dependency), so they can be customized freely. The combination provides a modern, consistent UI with minimal CSS authoring.
 
 ### Decision: next-themes for dark mode
+
 **Choice:** `next-themes` library with class-based theme switching.
 **Rationale:** Handles SSR/hydration correctly (no flash of wrong theme), supports system preference detection, and integrates cleanly with Tailwind's `dark:` variant via the `.dark` class on `<html>`.

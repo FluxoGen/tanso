@@ -11,6 +11,7 @@ A complete end-to-end explanation of how Tanso works, from the backend API clien
    - [MangaDex Client](#mangadex-client-srclibmangadexts)
    - [AniList Client](#anilist-client-srclibanilistts)
 3. [API Routes Layer — Backend Proxy](#3-api-routes-layer--backend-proxy)
+   - [API Contracts & Route Reference](#api-contracts--route-reference)
 4. [Frontend Layer — Pages and Components](#4-frontend-layer--pages-and-components)
    - [Root Layout](#root-layout)
    - [Home Page](#home-page)
@@ -26,6 +27,7 @@ A complete end-to-end explanation of how Tanso works, from the backend API clien
 6. [Reading Progress, Library & History](#6-reading-progress-library--history)
 7. [Data Types](#7-data-types)
 8. [Theming — How Dark Mode Works](#8-theming--how-dark-mode-works)
+9. [Search and Filter Flows](#9-search-and-filter-flows)
 
 ---
 
@@ -54,6 +56,7 @@ The backend logic lives in `src/lib/`. These files contain functions that call t
 The provider registry is an abstraction layer that wraps all content sources behind a common `ContentProvider` interface. This allows API routes to look up a provider by name and call its methods without knowing the implementation details.
 
 **Key files:**
+
 - `types.ts` — Defines `ContentProvider` and `ProviderSearchResult` interfaces
 - `index.ts` — Registry with `registerProvider()`, `getProvider()`, `listProviders()` functions
 - `mangadex.ts` — MangaDex provider wrapping existing `src/lib/mangadex.ts` functions
@@ -64,12 +67,14 @@ The provider registry is an abstraction layer that wraps all content sources beh
 ### Cache Layer (`src/lib/cache.ts`)
 
 A simple TTL-based LRU cache used to avoid redundant API calls:
+
 - **Source discovery cache** — key: manga ID, TTL: 30 min, max 500 entries
 - **Chapter list cache** — key: `provider:sourceId`, TTL: 1 hr, max 200 entries
 
 ### Title Matching (`src/lib/matching.ts`)
 
 A scoring algorithm used during source discovery to match manga across providers:
+
 - Title similarity (exact, contains, Levenshtein): 0-50 pts
 - Chapter count proximity to expected: 0-30 pts
 - Status match: 0-10 pts
@@ -85,48 +90,57 @@ This is the largest and most important file in the backend. It contains all func
 The file defines internal interfaces (`MdMangaAttributes`, `MdChapterAttributes`, `MdRelationship`) that mirror the raw MangaDex response shape. These are never exported — they exist only to type the normalization functions.
 
 **`pickTitle(titles, altTitles)`** — Resolves the best title from MangaDex's multilingual title map:
+
 - Priority: English → Japanese romanized (`ja-ro`) → Japanese (`ja`) → first available
 - If both English and Japanese exist and differ, Japanese becomes the `altTitle`
 - This ensures English-speaking users always see a readable title, while preserving the original title as a subtitle
 
 **`normalizeManga(item)`** — Transforms a raw MangaDex manga object into our `Manga` type:
+
 - Extracts the best title via `pickTitle()`
 - Finds `cover_art`, `author`, and `artist` entities from the `relationships[]` array
 - Pulls `fileName` from cover art and `name` from author/artist
 - Maps tags from nested `{ attributes: { name: { en } } }` to flat `{ id, name, group }`
 
 **`normalizeChapter(item)`** — Transforms a raw chapter object into our `Chapter` type:
+
 - Extracts the scanlation group name from `relationships[]`
 - Flattens the chapter attributes
 
 #### Public Functions
 
 **`searchManga(query, options)`**
+
 - Calls: `GET /manga?title={query}&limit={limit}&offset={offset}&includes[]=cover_art&includes[]=author&includes[]=artist&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&order[relevance]=desc`
 - Optional: appends `includedTags[]` for genre filtering
 - Returns: `PaginatedResponse<Manga>` with `data`, `total`, `offset`, `limit`
 
 **`getMangaDetails(id)`**
+
 - Calls: `GET /manga/{id}?includes[]=cover_art&includes[]=author&includes[]=artist`
 - Returns: a single `Manga` object
 - The `includes[]` params tell MangaDex to embed related entities in the response, avoiding separate API calls for cover art and author data
 
 **`getMangaChapters(id, options)`**
+
 - Calls: `GET /manga/{id}/feed?limit={limit}&offset={offset}&translatedLanguage[]=en&order[chapter]=desc&includes[]=scanlation_group`
 - Returns: `PaginatedResponse<Chapter>`
 - Defaults to English chapters in descending order (newest first)
 
 **`getChapterPages(chapterId)`**
+
 - Calls: `GET /at-home/server/{chapterId}`
 - Returns: `ChapterPages` containing `baseUrl`, `hash`, `data[]` (original filenames), `dataSaver[]` (compressed filenames)
 - The client constructs full image URLs from these components
 
 **`getMangaTags()`**
+
 - Calls: `GET /manga/tag`
 - Returns: `MangaTag[]` — all available tags with `id`, `name`, `group`
 - **Cached in memory:** The result is stored in a module-level variable. Subsequent calls return the cached value without hitting MangaDex. This is safe because tags almost never change.
 
 **`getPopularManga(limit, includedTags)`** / **`getLatestManga(...)`** / **`getTrendingManga(...)`**
+
 - All three call `GET /manga` with different `order` parameters:
   - Popular: `order[followedCount]=desc` (most bookmarked)
   - Latest: `order[latestUploadedChapter]=desc` (most recently updated)
@@ -137,6 +151,7 @@ The file defines internal interfaces (`MdMangaAttributes`, `MdChapterAttributes`
 - Return: `Manga[]`
 
 **`getCoverUrl(mangaId, coverFileName, size)`**
+
 - Pure function (no API call). Constructs a cover image URL:
   ```
   https://uploads.mangadex.org/covers/{mangaId}/{coverFileName}.256.jpg
@@ -150,6 +165,7 @@ The file defines internal interfaces (`MdMangaAttributes`, `MdChapterAttributes`
 A single-function module that queries AniList's GraphQL API.
 
 **`searchAniListManga(title)`**
+
 - Sends a `POST` request to `https://graphql.anilist.co` with a GraphQL query
 - Variables: `{ search: title }` — searches by the manga title obtained from MangaDex
 - The query fetches: `id`, `title` (romaji/english/native), `description`, `averageScore`, `meanScore`, `genres`, `tags`, `bannerImage`, `coverImage`, `status`, `chapters`, `volumes`, `startDate`, and `recommendations` (top 6 by rating)
@@ -238,7 +254,7 @@ The client receives a single response containing all the data it needs for the d
 
 **File:** `src/app/api/search/route.ts`
 
-- Reads `q` (search query), `page` (default 1), and `genres` (repeatable) query parameters
+- Reads `q` (search query), `page` (default 1), `tags` and `ratings` (repeatable) query parameters
 - Computes `offset = (page - 1) * 20`
 - Runs **two calls in parallel**: `searchManga(q, ...)` against MangaDex and `searchAniListManga(q)` against AniList
 - **Fast path:** If AniList finds no match or its titles are the same as the user's query, MangaDex results are returned directly
@@ -251,15 +267,40 @@ The client receives a single response containing all the data it needs for the d
 ### Error Handling Pattern
 
 Every route follows the same try/catch pattern:
+
 ```typescript
 try {
-  // ... call API client
-  return NextResponse.json(result);
+	// ... call API client
+	return NextResponse.json(result);
 } catch {
-  return NextResponse.json({ error: "..." }, { status: 500 });
+	return NextResponse.json({ error: '...' }, { status: 500 });
 }
 ```
+
 This ensures the client always gets a valid JSON response, even on failure.
+
+#### API Contracts & Route Reference
+
+**Success response:** `{ data: <T>, total?: number }` — `data` is array or object; `total` optional for pagination.
+
+**Error response:** `{ error: string, status: number }` with appropriate HTTP status code.
+
+**Route reference:**
+
+| Route                      | Method | Params                            | Response                        |
+| -------------------------- | ------ | --------------------------------- | ------------------------------- |
+| `/api/search`              | GET    | q, page, tags, ratings            | `{ data: Manga[], total }`      |
+| `/api/suggest`             | GET    | q                                 | `{ suggestions: Suggestion[] }` |
+| `/api/manga/[id]`          | GET    | -                                 | `{ manga, anilist }`            |
+| `/api/manga/tags`          | GET    | -                                 | `{ data: MangaTag[] }`          |
+| `/api/manga/trending`      | GET    | tags, ratings                     | `{ data: Manga[] }`             |
+| `/api/manga/popular`       | GET    | tags, ratings                     | `{ data: Manga[] }`             |
+| `/api/manga/latest`        | GET    | tags, ratings, limit, offset      | `{ data: Manga[], total }`      |
+| `/api/manga/[id]/sources`  | GET    | altTitles, status, lastChapter    | `{ sources }`                   |
+| `/api/manga/[id]/chapters` | GET    | source, sourceId, page, chapterId | `{ chapters, nav, total }`      |
+| `/api/chapter/[id]`        | GET    | -                                 | MangaDex chapter pages          |
+| `/api/chapter/resolve`     | GET    | source, chapterId                 | External chapter pages          |
+| `/api/health`              | GET    | -                                 | `{ status, timestamp }`         |
 
 ---
 
@@ -291,11 +332,13 @@ The `suppressHydrationWarning` on `<html>` prevents React from complaining about
 The entry point of the application. Displays three sections of manga (Trending, Most Popular, Latest Updates) with a genre filter bar at the top.
 
 **State management:**
-- `selectedTags: string[]` — currently active genre tag IDs, controlled by the `GenreChips` component
+
+- `selectedTags: string[]` — currently active genre tag IDs, controlled by the `TagFilter` component
 - A custom hook `useMangaSection(section, tags)` encapsulates the fetch logic for each section. It calls `/api/manga/{section}?tags=...` whenever the section name or selected tags change.
 
 **Data flow:**
-1. On mount, `GenreChips` fetches `/api/manga/tags` and renders genre pills
+
+1. On mount, `TagFilter` fetches `/api/manga/tags` and renders genre pills (see [§9. Search and Filter Flows](#9-search-and-filter-flows))
 2. Three instances of `useMangaSection` fetch trending, popular, and latest manga
 3. When the user toggles a genre chip, `selectedTags` updates, all three hooks re-fetch with the new tags
 4. Each section renders a `MangaGrid` (or `MangaGridSkeleton` while loading)
@@ -309,6 +352,7 @@ The entry point of the application. Displays three sections of manga (Trending, 
 A full-featured search interface with text input, tag filtering (genres, themes, demographics, content ratings), and dual pagination modes.
 
 **URL-driven state:**
+
 - `q` — search query text
 - `tags` — selected tag IDs for genres/themes/demographics (repeatable param)
 - `ratings` — content rating filters (safe, suggestive, erotica, pornographic)
@@ -317,12 +361,14 @@ A full-featured search interface with text input, tag filtering (genres, themes,
 All state is derived from URL search params (`useSearchParams`). When the user types a query, selects filters, or clicks a pagination button, the URL is updated via `router.push()`, which triggers a re-render and a new API fetch.
 
 **View modes:**
+
 - **Scroll (infinite)** — Results load automatically as the user scrolls down. Uses IntersectionObserver to detect when the bottom is reached.
 - **Pages (paginated)** — Traditional prev/next navigation with a page number input for direct jumps. Page input navigates on Enter or blur.
 
 **Why URL state?** This makes search results bookmarkable and shareable. The browser's back/forward buttons work naturally. If someone shares a URL like `/search?q=naruto&tags=action-tag-id&page=2`, the recipient sees the exact same results.
 
 **Data flow:**
+
 1. User types "Naruto" and clicks Search (or presses Enter)
 2. URL updates to `/search?q=naruto`
 3. `useEffect` fires, calls `GET /api/search?q=naruto&page=1`
@@ -342,6 +388,7 @@ The page is wrapped in a `<Suspense>` boundary because `useSearchParams()` requi
 Displays comprehensive information about a single manga with merged data from MangaDex and AniList.
 
 **Data flow:**
+
 1. Page receives `params.id` (the MangaDex manga UUID)
 2. Fetches `GET /api/manga/{id}` which returns `{ manga: Manga, anilist: AniListMedia | null }`
 3. Renders:
@@ -375,19 +422,23 @@ The page makes the best use of both API sources:
 The core reading experience. Displays one manga page at a time with multiple navigation methods. Both entry points render the shared `ReaderContent` component.
 
 **Dual entry points:**
+
 - `/read/{chapterId}?manga={mangaId}` — MangaDex chapters (path-based, UUIDs are safe)
 - `/read/ext?manga={mangaId}&source={provider}&chapterId={id}` — Consumet chapters (query-param based to handle `/` in chapter IDs)
 
 **State:**
+
 - `pages: ChapterPagesResponse | null` — discriminated union: MangaDex variant has `hash`/`baseUrl`/`data`/`dataSaver`, other sources have `pages[]` with direct image URLs
 - `currentPage: number` — 0-indexed current page
 - `quality: "data" | "data-saver"` — image quality setting (MangaDex only)
 
 **Data flow:**
+
 1. MangaDex: fetches `GET /api/chapter/{chapterId}`, constructs URLs from `baseUrl/quality/hash/filename`
 2. Consumet: fetches `GET /api/chapter/resolve?source={provider}&chapterId={id}`, uses direct image URLs from `pages[].img`
 
 **Navigation methods (5 ways to navigate):**
+
 1. **Arrow keys** — Left/Right arrows for previous/next page
 2. **A/D keys** — Alternative keyboard shortcuts
 3. **Click on image** — Click left half for previous, right half for next
@@ -405,21 +456,25 @@ Only shown for MangaDex chapters (which have two quality tiers). Hidden for Cons
 ### Shared Components
 
 **`Navbar`** (`src/components/navbar.tsx`)
+
 - Sticky header with `bg-background/80 backdrop-blur-sm` for a frosted glass effect
 - Contains: Logo (book icon + "Tanso" text), centered SearchBar, ThemeToggle
 - Logo links to home page
 
 **`SearchBar`** (`src/components/search-bar.tsx`)
+
 - Form with a search icon and text input
 - On submit, navigates to `/search?q={query}`
 - Max width of `sm` (384px)
 
 **`ThemeToggle`** (`src/components/theme-toggle.tsx`)
+
 - Ghost button with sun/moon icon
 - Calls `setTheme("dark" | "light")` from `useTheme()`
 - Renders a placeholder during SSR to avoid hydration mismatch
 
-**`GenreChips`** (`src/components/genre-chips.tsx`)
+**`TagFilter`** (`src/components/tag-filter.tsx`)
+
 - Fetches tags from `/api/manga/tags` on mount
 - Filters to `group === "genre"`, sorts alphabetically
 - Renders horizontally scrollable pill buttons
@@ -428,21 +483,25 @@ Only shown for MangaDex chapters (which have two quality tiers). Hidden for Cons
 - Shows animated pulse placeholders while loading
 
 **`MangaCard`** (`src/components/manga-card.tsx`)
+
 - Links to `/manga/{id}`
 - Shows cover image (aspect 3:4), title (2 lines max), author name
 - "Suggestive" badge for non-safe content
 - Hover: slight scale-up and title color change
 
 **`MangaGrid`** (`src/components/manga-grid.tsx`)
+
 - Responsive CSS grid: 2 columns (mobile) → 3 → 4 → 5 columns (desktop)
 - Maps over `Manga[]` and renders `MangaCard` for each
 - Shows "No manga found" message if the array is empty
 
 **`MangaCardSkeleton` / `MangaGridSkeleton`**
+
 - Animated pulse placeholders matching the card/grid layout
 - Used while data is being fetched
 
 **`ChapterList`** (`src/components/chapter-list.tsx`)
+
 - Takes `mangaId`, `mangaTitle`, `lastChapter`, and optional `anilistId` props
 - Progressive source loading: MangaDex tab shown immediately, Consumet sources discovered in background
 - Source tabs display provider name, matched title (for non-MangaDex), and chapter count
@@ -466,7 +525,7 @@ Only shown for MangaDex chapters (which have two quality tiers). Hidden for Cons
 
 2. **`page.tsx` mounts (client-side):** Initializes `selectedTags = []`.
 
-3. **`GenreChips` mounts:** Calls `GET /api/manga/tags`.
+3. **`TagFilter` mounts:** Calls `GET /api/manga/tags`.
    - API route calls `getMangaTags()` → `GET https://api.mangadex.org/manga/tag`
    - MangaDex returns ~70 tags across groups: genre, theme, format, content
    - `getMangaTags()` normalizes and caches them in memory
@@ -519,7 +578,7 @@ Only shown for MangaDex chapters (which have two quality tiers). Hidden for Cons
 
 7. **Page re-renders** with filtered results and updated count.
 
-**Total browser API calls:** 2 (initial search + filtered search). Tags are fetched separately by `GenreChips`.
+**Total browser API calls:** 2 (initial search + filtered search). Tags are fetched separately by `TagFilter`.
 
 ---
 
@@ -658,6 +717,7 @@ Reading progress is automatically saved when reading chapters:
 3. **Chapter completion:** When reaching the last page, the chapter is marked as read in `tanso:chapters_read`
 
 **Data flow:**
+
 ```
 User turns page → updateProgress() → debounce 1s → saveProgress() → localStorage
 User leaves page → flushProgress() → immediate save → localStorage
@@ -677,6 +737,7 @@ Users can add manga to their library with status tracking:
 - **Dropped:** Stopped reading
 
 **UI components:**
+
 - `LibraryButton` (manga detail page) — dropdown to add/update status
 - `/library` page — grid view with status tabs
 - Visual badges on library cards showing current status
@@ -692,6 +753,7 @@ Automatically tracks the last 100 manga read:
 - Grouped by date in the history page (Today, Yesterday, This Week, etc.)
 
 **UI components:**
+
 - `/history` page — timeline view with date groupings
 - "Continue" link to resume reading
 - Clear all button with confirmation
@@ -725,55 +787,55 @@ The chapter list shows visual indicators for read status:
 
 The core type representing a manga title.
 
-| Field | Type | Description |
-|---|---|---|
-| `id` | `string` | MangaDex UUID |
-| `title` | `string` | Best available English title |
-| `altTitle` | `string?` | Japanese/alternative title (shown as subtitle) |
-| `description` | `string` | Synopsis text |
-| `status` | `string` | "ongoing", "completed", "hiatus", "cancelled" |
-| `year` | `number | null` | Year of first publication |
-| `contentRating` | `string` | "safe", "suggestive", "erotica" |
-| `tags` | `MangaTag[]` | Genre and theme tags |
-| `coverId` | `string | null` | Cover art relationship ID |
-| `coverFileName` | `string | null` | Filename for constructing cover URL |
-| `authorName` | `string | null` | Author name |
-| `artistName` | `string | null` | Artist name (may differ from author) |
-| `lastChapter` | `string | null` | Latest chapter number |
-| `lastVolume` | `string | null` | Latest volume number |
+| Field           | Type         | Description                                    |
+| --------------- | ------------ | ---------------------------------------------- | ------------------------------------ |
+| `id`            | `string`     | MangaDex UUID                                  |
+| `title`         | `string`     | Best available English title                   |
+| `altTitle`      | `string?`    | Japanese/alternative title (shown as subtitle) |
+| `description`   | `string`     | Synopsis text                                  |
+| `status`        | `string`     | "ongoing", "completed", "hiatus", "cancelled"  |
+| `year`          | `number      | null`                                          | Year of first publication            |
+| `contentRating` | `string`     | "safe", "suggestive", "erotica"                |
+| `tags`          | `MangaTag[]` | Genre and theme tags                           |
+| `coverId`       | `string      | null`                                          | Cover art relationship ID            |
+| `coverFileName` | `string      | null`                                          | Filename for constructing cover URL  |
+| `authorName`    | `string      | null`                                          | Author name                          |
+| `artistName`    | `string      | null`                                          | Artist name (may differ from author) |
+| `lastChapter`   | `string      | null`                                          | Latest chapter number                |
+| `lastVolume`    | `string      | null`                                          | Latest volume number                 |
 
 ### `MangaTag` (`src/types/manga.ts`)
 
-| Field | Type | Description |
-|---|---|---|
-| `id` | `string` | MangaDex tag UUID |
-| `name` | `string` | English tag name (e.g., "Action") |
+| Field   | Type     | Description                                         |
+| ------- | -------- | --------------------------------------------------- |
+| `id`    | `string` | MangaDex tag UUID                                   |
+| `name`  | `string` | English tag name (e.g., "Action")                   |
 | `group` | `string` | Tag category: "genre", "theme", "format", "content" |
 
 ### `Chapter` (`src/types/manga.ts`)
 
-| Field | Type | Description |
-|---|---|---|
-| `id` | `string` | Chapter ID (MangaDex UUID or Consumet slug) |
-| `title` | `string | null` | Chapter title (may be null) |
-| `chapter` | `string | null` | Chapter number (string, e.g., "24.5") |
-| `volume` | `string | null` | Volume number |
-| `pages` | `number` | Number of pages in the chapter (0 = unknown for Consumet) |
-| `translatedLanguage` | `string` | Language code (e.g., "en") |
-| `publishAt` | `string` | ISO timestamp of when the chapter was published |
-| `scanlationGroup` | `string | null` | Name of the group that scanlated this chapter |
-| `source` | `string` | Provider name: "mangadex", "mangareader", etc. |
+| Field                | Type     | Description                                               |
+| -------------------- | -------- | --------------------------------------------------------- | --------------------------------------------- |
+| `id`                 | `string` | Chapter ID (MangaDex UUID or Consumet slug)               |
+| `title`              | `string  | null`                                                     | Chapter title (may be null)                   |
+| `chapter`            | `string  | null`                                                     | Chapter number (string, e.g., "24.5")         |
+| `volume`             | `string  | null`                                                     | Volume number                                 |
+| `pages`              | `number` | Number of pages in the chapter (0 = unknown for Consumet) |
+| `translatedLanguage` | `string` | Language code (e.g., "en")                                |
+| `publishAt`          | `string` | ISO timestamp of when the chapter was published           |
+| `scanlationGroup`    | `string  | null`                                                     | Name of the group that scanlated this chapter |
+| `source`             | `string` | Provider name: "mangadex", "mangareader", etc.            |
 
 ### `MangaSource` (`src/types/manga.ts`)
 
-| Field | Type | Description |
-|---|---|---|
-| `provider` | `string` | Provider name (e.g., "mangadex", "mangareader") |
-| `displayName` | `string` | Human-readable name (e.g., "MangaDex", "MangaReader") |
-| `sourceId` | `string` | ID of the manga on this provider |
-| `matchedTitle` | `string` | Title as it appears on this provider |
-| `chapterCount` | `number` | Number of chapters available |
-| `confidence` | `number` | Match confidence 0-100 (100 = exact match) |
+| Field          | Type     | Description                                           |
+| -------------- | -------- | ----------------------------------------------------- |
+| `provider`     | `string` | Provider name (e.g., "mangadex", "mangareader")       |
+| `displayName`  | `string` | Human-readable name (e.g., "MangaDex", "MangaReader") |
+| `sourceId`     | `string` | ID of the manga on this provider                      |
+| `matchedTitle` | `string` | Title as it appears on this provider                  |
+| `chapterCount` | `number` | Number of chapters available                          |
+| `confidence`   | `number` | Match confidence 0-100 (100 = exact match)            |
 
 ### `ChapterPagesResponse` (`src/types/manga.ts`)
 
@@ -781,48 +843,48 @@ A discriminated union type. Check `"hash" in response` to narrow:
 
 **MangaDex variant:**
 
-| Field | Type | Description |
-|---|---|---|
-| `source` | `"mangadex"` | Discriminator |
-| `baseUrl` | `string` | CDN base URL (valid ~15 min) |
-| `hash` | `string` | Chapter image hash |
-| `data` | `string[]` | Original quality filenames |
-| `dataSaver` | `string[]` | Compressed quality filenames |
+| Field       | Type         | Description                  |
+| ----------- | ------------ | ---------------------------- |
+| `source`    | `"mangadex"` | Discriminator                |
+| `baseUrl`   | `string`     | CDN base URL (valid ~15 min) |
+| `hash`      | `string`     | Chapter image hash           |
+| `data`      | `string[]`   | Original quality filenames   |
+| `dataSaver` | `string[]`   | Compressed quality filenames |
 
 **External source variant:**
 
-| Field | Type | Description |
-|---|---|---|
-| `source` | `string` | Provider name |
-| `pages` | `{ img: string; page: number }[]` | Direct image URLs with page numbers |
+| Field    | Type                              | Description                         |
+| -------- | --------------------------------- | ----------------------------------- |
+| `source` | `string`                          | Provider name                       |
+| `pages`  | `{ img: string; page: number }[]` | Direct image URLs with page numbers |
 
 ### `PaginatedResponse<T>` (`src/types/manga.ts`)
 
-| Field | Type | Description |
-|---|---|---|
-| `data` | `T[]` | Array of items for the current page |
-| `total` | `number` | Total number of items across all pages |
-| `offset` | `number` | Current offset |
-| `limit` | `number` | Items per page |
+| Field    | Type     | Description                            |
+| -------- | -------- | -------------------------------------- |
+| `data`   | `T[]`    | Array of items for the current page    |
+| `total`  | `number` | Total number of items across all pages |
+| `offset` | `number` | Current offset                         |
+| `limit`  | `number` | Items per page                         |
 
 ### `AniListMedia` (`src/types/anilist.ts`)
 
-| Field | Type | Description |
-|---|---|---|
-| `id` | `number` | AniList media ID |
-| `title` | `{ romaji, english, native }` | Titles in different scripts |
-| `description` | `string | null` | Synopsis (plain text) |
-| `averageScore` | `number | null` | Community score (0-100) |
-| `meanScore` | `number | null` | Mean score |
-| `genres` | `string[]` | Genre list |
-| `tags` | `{ name, rank }[]` | Ranked tags |
-| `bannerImage` | `string | null` | Wide banner image URL |
-| `coverImage` | `{ extraLarge, large } | null` | Cover image URLs |
-| `status` | `string | null` | Publication status |
-| `chapters` | `number | null` | Total chapter count |
-| `volumes` | `number | null` | Total volume count |
-| `startDate` | `{ year, month, day } | null` | Publication start date |
-| `recommendations` | `{ nodes: [...] } | null` | Related manga recommendations |
+| Field             | Type                          | Description                 |
+| ----------------- | ----------------------------- | --------------------------- | ----------------------------- |
+| `id`              | `number`                      | AniList media ID            |
+| `title`           | `{ romaji, english, native }` | Titles in different scripts |
+| `description`     | `string                       | null`                       | Synopsis (plain text)         |
+| `averageScore`    | `number                       | null`                       | Community score (0-100)       |
+| `meanScore`       | `number                       | null`                       | Mean score                    |
+| `genres`          | `string[]`                    | Genre list                  |
+| `tags`            | `{ name, rank }[]`            | Ranked tags                 |
+| `bannerImage`     | `string                       | null`                       | Wide banner image URL         |
+| `coverImage`      | `{ extraLarge, large }        | null`                       | Cover image URLs              |
+| `status`          | `string                       | null`                       | Publication status            |
+| `chapters`        | `number                       | null`                       | Total chapter count           |
+| `volumes`         | `number                       | null`                       | Total volume count            |
+| `startDate`       | `{ year, month, day }         | null`                       | Publication start date        |
+| `recommendations` | `{ nodes: [...] }             | null`                       | Related manga recommendations |
 
 ---
 
@@ -859,17 +921,17 @@ The `globals.css` defines CSS variables for both themes:
 
 ```css
 :root {
-  --background: oklch(1 0 0);          /* white */
-  --foreground: oklch(0.145 0 0);      /* near-black */
-  --card: oklch(1 0 0);                /* white */
-  /* ... */
+	--background: oklch(1 0 0); /* white */
+	--foreground: oklch(0.145 0 0); /* near-black */
+	--card: oklch(1 0 0); /* white */
+	/* ... */
 }
 
 .dark {
-  --background: oklch(0.145 0 0);      /* near-black */
-  --foreground: oklch(0.985 0 0);      /* near-white */
-  --card: oklch(0.205 0 0);            /* dark gray */
-  /* ... */
+	--background: oklch(0.145 0 0); /* near-black */
+	--foreground: oklch(0.985 0 0); /* near-white */
+	--card: oklch(0.205 0 0); /* dark gray */
+	/* ... */
 }
 ```
 
@@ -891,3 +953,65 @@ The `ThemeToggle` button reads the current theme via `useTheme()` and calls `set
 4. All CSS variables switch to their `.dark` values
 5. All Tailwind `dark:` variants activate
 6. The entire UI re-renders with dark colors — no page reload needed
+
+---
+
+## 9. Search and Filter Flows
+
+This section describes how search and filter flows work across the application.
+
+### Search Flow
+
+```mermaid
+flowchart LR
+    SearchBar[SearchBar] -->|submit| Search[Search Page]
+    Search -->|fetch| API[/api/search]
+    API -->|MangaDex + AniList| Results[MangaGrid]
+```
+
+1. User types in the search bar and submits (or selects a suggestion).
+2. Navigation to `/search?q=...&tags=...&ratings=...&page=1`.
+3. Search page fetches from `/api/search` with `q`, `tags`, `ratings`, `page`.
+4. API merges MangaDex results with AniList metadata when applicable.
+5. Results render in a grid (infinite scroll or paginated view).
+
+### Filter Flow
+
+```mermaid
+flowchart LR
+    TagFilter[TagFilter] -->|state| URL[URL params]
+    URL -->|tags, ratings| API[API params]
+    API -->|includedTags, contentRatings| MangaDex[MangaDex]
+```
+
+- **URL params:** `tags`, `ratings` (plural, consistent)
+- **API params:** `tags` maps to MangaDex `includedTags`; `ratings` maps to `contentRatings`
+
+### Page-by-Page Behavior
+
+| Page   | URL params                     | Notes                                  |
+| ------ | ------------------------------ | -------------------------------------- |
+| Home   | `tags`, `ratings`              | Filters in URL, shared across sections |
+| Search | `q`, `page`, `tags`, `ratings` | Full search + filter state in URL      |
+| Latest | `tags`, `ratings`              | Filters persisted in URL (shareable)   |
+
+### Suggest Flow
+
+1. User types 2+ characters in the search bar.
+2. Debounced fetch to `/api/suggest?q=...`.
+3. Up to 20 results returned; 6 visible with scroll.
+
+### Param Mapping
+
+| URL param | API param | MangaDex param   |
+| --------- | --------- | ---------------- |
+| `tags`    | `tags`    | `includedTags`   |
+| `ratings` | `ratings` | `contentRatings` |
+
+### Caching
+
+- **Tags:** In-memory cache in `src/lib/mangadex.ts` (until server restart).
+- **Chapters:** TTL-based in `src/lib/cache.ts` (30 min sources, 1 hr chapters).
+- **Client:** No client-side cache for `/api/manga/tags`; fetches on each page with TagFilter.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for more on caching strategy.

@@ -195,15 +195,18 @@ flowchart LR
 MangaDex returns deeply nested, multilingual JSON. Our `normalizeManga()` function in `src/lib/mangadex.ts` transforms this into a flat, predictable `Manga` TypeScript interface:
 
 **Title resolution (`pickTitle`):**
+
 - Prefers English (`en`), falls back to Japanese romanized (`ja-ro`), then Japanese (`ja`), then the first available language.
 - If both English and Japanese titles exist and differ, the Japanese title becomes `altTitle`.
 - The detail page collects all alternate titles from MangaDex (`altTitle`) and AniList (`title.romaji`, `title.english`, `title.native`), deduplicates them, and displays them as styled chips under an "Alternate Titles" heading.
 
 **Relationship extraction:**
+
 - MangaDex embeds related entities (cover art, author, artist) in a `relationships[]` array when you include them via `includes[]` query params.
 - `normalizeManga()` finds each by `type` and extracts the relevant attributes (`fileName` for covers, `name` for authors/artists).
 
 **Tag mapping:**
+
 - Raw tags have nested `{ attributes: { name: { en: "Action" }, group: "genre" } }`.
 - Normalized to `{ id, name, group }` for easy filtering (e.g., filtering to `group === "genre"` for the genre chips).
 
@@ -249,11 +252,13 @@ sequenceDiagram
 Chapter images are delivered through different pipelines depending on the source:
 
 **MangaDex chapters** use the **MangaDex@Home** network, a volunteer-run CDN:
+
 1. The API route calls `GET /at-home/server/{chapterId}` which returns `baseUrl`, `hash`, `data[]` (original filenames), `dataSaver[]` (compressed).
 2. The client builds full image URLs: `{baseUrl}/data/{hash}/{filename}` (HQ) or `{baseUrl}/data-saver/{hash}/{filename}` (Lite).
 3. Base URL is valid ~15 minutes.
 
 **MangaPill chapters** (via `@consumet/extensions`) require server-side proxying:
+
 1. The API route calls `provider.getChapterPages(chapterId)` which scrapes the source.
 2. The response contains `pages[]` with `img` (CDN URL) and `page` (number).
 3. MangaPill's CDN (`cdn.readdetectiveconan.com`) returns 403 without a `Referer: https://mangapill.com/` header — browsers don't send this header when loading from `localhost`.
@@ -262,9 +267,11 @@ Chapter images are delivered through different pipelines depending on the source
 In **paged mode**, both pipelines preload the next 3 pages using `new Image()` objects.
 
 **Cover images** follow a simpler pattern with a stable CDN:
+
 ```
 https://uploads.mangadex.org/covers/{mangaId}/{coverFileName}.256.jpg
 ```
+
 Available sizes: `.256.jpg` (thumbnail), `.512.jpg` (medium), or no suffix (original).
 
 ---
@@ -323,7 +330,6 @@ tanso/
 │   │   ├── search-bar.tsx             # Search input with debounced suggestions dropdown and clear button
 │   │   ├── theme-toggle.tsx           # Dark/light mode switch button
 │   │   ├── tag-filter.tsx             # Collapsible tag filter with genres, themes, demographic, rating (compact mode)
-│   │   ├── genre-chips.tsx            # Simple horizontal scrollable genre pill selector
 │   │   ├── manga-card.tsx             # Single manga card with content rating badges
 │   │   ├── manga-grid.tsx             # Responsive grid of MangaCard components
 │   │   ├── chapter-list.tsx           # Multi-source chapter list with read/reading indicators (mobile-optimized)
@@ -393,7 +399,7 @@ graph TD
     NavbarComp --> ThemeToggleComp
 
     subgraph homePage ["Home Page (/)"]
-        HP_GenreChips["GenreChips"]
+        HP_TagFilter["TagFilter"]
         HP_Section1["MangaGrid (Trending)"]
         HP_Section2["MangaGrid (Popular)"]
         HP_Section3["MangaGrid (Latest)"]
@@ -402,7 +408,7 @@ graph TD
 
     subgraph searchPage ["Search Page (/search)"]
         SP_Input["Input + Search Button"]
-        SP_GenreChips["GenreChips"]
+        SP_TagFilter["TagFilter"]
         SP_Grid["MangaGrid"]
         SP_Pagination["Pagination Buttons"]
     end
@@ -438,17 +444,21 @@ graph TD
 ### Explanation
 
 **Root layout** (`layout.tsx`) wraps every page:
+
 - `ThemeProvider` from `next-themes` provides dark/light mode context to the entire app.
 - `Navbar` is always visible — it contains the `SearchBar` (form that navigates to `/search?q=...`) and the `ThemeToggle` (sun/moon icon button).
 - `{children}` is the slot where the current page renders.
 
-**Home page** — Three `MangaGrid` instances, each fed by a `useMangaSection` hook that fetches from `/api/manga/trending`, `/api/manga/popular`, or `/api/manga/latest`. A shared `GenreChips` component at the top controls tag filtering for all three grids.
+**Home page** — Three `MangaGrid` instances, each fed by a `useMangaSection` hook that fetches from `/api/manga/trending`, `/api/manga/popular`, or `/api/manga/latest`. A shared `TagFilter` component at the top controls tag filtering for all three grids.
 
-**Search page** — An `Input` form plus `GenreChips` for filtering, a `MangaGrid` for results, and pagination buttons. State is driven by URL search params (`?q=...&genres=...&page=1`).
+**Search page** — An `Input` form plus `TagFilter` for filtering, a `MangaGrid` for results, and pagination buttons. State is driven by URL search params (`?q=...&tags=...&ratings=...&page=1`).
+
+**See also:** [PROJECT_GUIDE.md §9. Search and Filter Flows](PROJECT_GUIDE.md#9-search-and-filter-flows) for detailed search and filter flow documentation.
 
 **Detail page** — Composed of individual elements: banner image, cover, metadata badges, genres, an `ExpandableDescription` (sanitizes AniList HTML, clamps to 4 lines with "Read full description" toggle), an "Alternate Titles" section (chips from MangaDex + AniList), and a `ChapterList` component that manages source tabs and pagination.
 
 **Reader page** — Supports two reading modes:
+
 - **Paged mode** (default for standard manga): Single `<Image>` element per page, click left/right halves or use arrow keys to navigate, Previous/Next buttons, page selector dropdown, and quality toggle (HQ/Lite for MangaDex).
 - **Long-strip mode** (auto-detected for webtoons): All images stacked vertically at full width with lazy loading. Auto-activates when the second page's height/width ratio exceeds 3 (characteristic of webtoon vertical strips). Users can manually toggle between modes via the "Paged" / "Scroll" button.
 
@@ -527,20 +537,20 @@ Three React hooks wrap the storage layer with state management:
 
 ## 8. API Route Map
 
-| Route | Method | Query Parameters | Upstream API | Description |
-|---|---|---|---|---|
-| `/api/manga/trending` | GET | `tags`, `ratings` (repeatable) | MangaDex `GET /manga` ordered by `rating desc` | Top-rated manga, optionally filtered by genre tags and content ratings |
-| `/api/manga/popular` | GET | `tags`, `ratings` (repeatable) | MangaDex `GET /manga` ordered by `followedCount desc` | Most-followed manga, optionally filtered by genre tags and content ratings |
-| `/api/manga/latest` | GET | `tags`, `ratings`, `limit`, `offset` (repeatable) | MangaDex `GET /manga` ordered by `latestUploadedChapter desc` | Recently updated manga with pagination and filters |
-| `/api/manga/tags` | GET | — | MangaDex `GET /manga/tag` | Full list of all genre/theme tags (cached in memory) |
-| `/api/manga/[id]` | GET | — | MangaDex `GET /manga/{id}` + AniList `POST /graphql` | Manga details merged with AniList metadata (score, banner, description) |
-| `/api/manga/[id]/chapters` | GET | `source`, `sourceId`, `page`, `lang`, `chapterId` | Provider registry | Multi-source chapter list with chapter navigation (prev/next). MangaDex: server pagination. Others: full list, cached. |
-| `/api/manga/[id]/sources` | GET | `title` (required), `lastChapter`, `anilistId`, `status`, `altTitles` (pipe-separated) | Provider registry + scoring | Discovers available sources for a manga. Tries alternate titles as fallback if primary title yields no matches. Results cached 30 min. |
-| `/api/chapter/[id]` | GET | — | MangaDex `GET /at-home/server/{id}` | MangaDex chapter page images (ChapterPagesResponse, mangadex variant) |
-| `/api/chapter/resolve` | GET | `source`, `chapterId` | Provider registry | Consumet chapter page images (ChapterPagesResponse, external variant) |
-| `/api/suggest` | GET | `q` (query, min 2 chars) | MangaDex `GET /manga` | Search suggestions: returns top 6 results with cover, author, year for typeahead |
-| `/api/proxy-image` | GET | `url`, `source` | Direct fetch with domain whitelist | Secured image proxy. HTTPS-only, rate limited, server-side referer. |
-| `/api/search` | GET | `q` (query), `page` (default 1), `genres` (repeatable) | MangaDex `GET /manga` + AniList `POST /graphql` (fallback) | Search manga by title with optional genre filtering. Falls back to AniList for alt titles. |
+| Route                      | Method | Query Parameters                                                                       | Upstream API                                                  | Description                                                                                                                            |
+| -------------------------- | ------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/manga/trending`      | GET    | `tags`, `ratings` (repeatable)                                                         | MangaDex `GET /manga` ordered by `rating desc`                | Top-rated manga, optionally filtered by genre tags and content ratings                                                                 |
+| `/api/manga/popular`       | GET    | `tags`, `ratings` (repeatable)                                                         | MangaDex `GET /manga` ordered by `followedCount desc`         | Most-followed manga, optionally filtered by genre tags and content ratings                                                             |
+| `/api/manga/latest`        | GET    | `tags`, `ratings`, `limit`, `offset` (repeatable)                                      | MangaDex `GET /manga` ordered by `latestUploadedChapter desc` | Recently updated manga with pagination and filters                                                                                     |
+| `/api/manga/tags`          | GET    | —                                                                                      | MangaDex `GET /manga/tag`                                     | Full list of all genre/theme tags (cached in memory)                                                                                   |
+| `/api/manga/[id]`          | GET    | —                                                                                      | MangaDex `GET /manga/{id}` + AniList `POST /graphql`          | Manga details merged with AniList metadata (score, banner, description)                                                                |
+| `/api/manga/[id]/chapters` | GET    | `source`, `sourceId`, `page`, `lang`, `chapterId`                                      | Provider registry                                             | Multi-source chapter list with chapter navigation (prev/next). MangaDex: server pagination. Others: full list, cached.                 |
+| `/api/manga/[id]/sources`  | GET    | `title` (required), `lastChapter`, `anilistId`, `status`, `altTitles` (pipe-separated) | Provider registry + scoring                                   | Discovers available sources for a manga. Tries alternate titles as fallback if primary title yields no matches. Results cached 30 min. |
+| `/api/chapter/[id]`        | GET    | —                                                                                      | MangaDex `GET /at-home/server/{id}`                           | MangaDex chapter page images (ChapterPagesResponse, mangadex variant)                                                                  |
+| `/api/chapter/resolve`     | GET    | `source`, `chapterId`                                                                  | Provider registry                                             | Consumet chapter page images (ChapterPagesResponse, external variant)                                                                  |
+| `/api/suggest`             | GET    | `q` (query, min 2 chars)                                                               | MangaDex `GET /manga`                                         | Search suggestions: returns top 6 results with cover, author, year for typeahead                                                       |
+| `/api/proxy-image`         | GET    | `url`, `source`                                                                        | Direct fetch with domain whitelist                            | Secured image proxy. HTTPS-only, rate limited, server-side referer.                                                                    |
+| `/api/search`              | GET    | `q` (query), `page` (default 1), `tags` (repeatable), `ratings` (repeatable)           | MangaDex `GET /manga` + AniList `POST /graphql` (fallback)    | Search manga by title with optional tag/rating filtering. Falls back to AniList for alt titles.                                        |
 
 ### Explanation
 
@@ -554,8 +564,29 @@ All routes follow the same pattern:
 **Multi-source routes** (`/api/manga/[id]/chapters`, `/api/manga/[id]/sources`, `/api/chapter/resolve`) use the provider registry to dispatch to the correct provider. The `source` parameter determines which `ContentProvider` implementation handles the request.
 
 **Caching strategy:**
+
 - `/api/manga/tags` — In-memory module-level cache (never expires, tags rarely change)
 - `/api/manga/[id]/sources` — `TTLCache` with 30 min TTL, max 500 entries
 - `/api/manga/[id]/chapters` (non-MangaDex) — `TTLCache` with 1 hr TTL, max 200 entries
 
 **Security:** The `/api/proxy-image` route prevents SSRF by maintaining a whitelist of allowed image domains and mapping source names to referer headers server-side. It never accepts arbitrary URLs or referers from clients.
+
+---
+
+## 8. Code Conventions
+
+- **Naming:** PascalCase (components), camelCase (functions/hooks), UPPER_SNAKE (constants)
+- **File structure:** `src/app` (routes), `src/components`, `src/lib`, `src/hooks`, `src/types`
+- **Client components:** Use `"use client"` only when needed (state, hooks, browser APIs)
+- **Path alias:** Use `@/` for imports (e.g. `@/components/ui/button`)
+- **Styling:** Tailwind CSS + shadcn/ui patterns
+- **Error handling:** Use `<ErrorState>` component with retry callback; avoid silent `.catch()`
+- **Loading states:** Skeleton components for lists; "Loading..." or spinners for single items
+
+---
+
+## 9. Accessibility
+
+- TagFilter chips are keyboard-accessible (Tab, Enter/Space to toggle)
+- Manga covers use meaningful `alt` text (manga title)
+- Reader has keyboard shortcuts (documented in UI)
