@@ -12,4 +12,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Merge notification
-        run: echo "PR #${{ github.event.pull_request.number }} merged to main"
+        env:
+          PR_NUM: ${{ github.event.pull_request.number }}
+        run: echo "PR #${PR_NUM} merged to main"

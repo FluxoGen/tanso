@@ -19,6 +19,9 @@ export const metadata: Metadata = {
 	title: 'Tanso — Explore Manga, Anime & More',
 	description:
 		'Discover and explore manga, anime, and light novels with a beautiful, ad-free experience.',
+	icons: {
+		icon: '/icon',
+	},
 };
 
 export default function RootLayout({
