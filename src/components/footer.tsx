@@ -8,7 +8,6 @@ export function Footer() {
 			<div className="text-muted-foreground mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-6 text-sm sm:flex-row">
 				<div className="flex items-center gap-2">
 					<p>© 2026 Tanso. All rights reserved.</p>
-					<span className="text-muted-foreground/60">·</span>
 					<span className="text-muted-foreground/60">v{packageJson.version}</span>
 				</div>
 				<Link
