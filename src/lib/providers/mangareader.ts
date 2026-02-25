@@ -1,6 +1,6 @@
-import { MANGA } from "@consumet/extensions";
-import type { ContentProvider, ProviderSearchResult } from "./types";
-import type { Chapter, ChapterPagesResponse } from "@/types/manga";
+import { MANGA } from '@consumet/extensions';
+import type { ContentProvider, ProviderSearchResult } from './types';
+import type { Chapter, ChapterPagesResponse } from '@/types/manga';
 
 const TIMEOUT_MS = 8000;
 
@@ -8,12 +8,17 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     promise,
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Timed out after ${ms}ms`)), ms),
+      setTimeout(() => reject(new Error(`Timed out after ${ms}ms`)), ms)
     ),
   ]);
 }
 
-function parseChapterNumber(ch: { id: string; chapterNumber?: number; chapter?: string; title?: string }): string | null {
+function parseChapterNumber(ch: {
+  id: string;
+  chapterNumber?: number;
+  chapter?: string;
+  title?: string;
+}): string | null {
   if (ch.chapter != null) return String(ch.chapter);
   if (ch.chapterNumber != null && !isNaN(ch.chapterNumber)) {
     return String(ch.chapterNumber);
@@ -28,7 +33,7 @@ function parseChapterNumber(ch: { id: string; chapterNumber?: number; chapter?: 
 }
 
 function safeDate(raw: string | undefined | null): string {
-  if (!raw) return "";
+  if (!raw) return '';
 
   const d = new Date(raw);
   if (!isNaN(d.getTime())) return d.toISOString();
@@ -39,26 +44,40 @@ function safeDate(raw: string | undefined | null): string {
     const value = parseInt(relativeMatch[1], 10);
     const unit = relativeMatch[2].toLowerCase();
     switch (unit) {
-      case "second": now.setSeconds(now.getSeconds() - value); break;
-      case "minute": now.setMinutes(now.getMinutes() - value); break;
-      case "hour": now.setHours(now.getHours() - value); break;
-      case "day": now.setDate(now.getDate() - value); break;
-      case "week": now.setDate(now.getDate() - value * 7); break;
-      case "month": now.setMonth(now.getMonth() - value); break;
-      case "year": now.setFullYear(now.getFullYear() - value); break;
+      case 'second':
+        now.setSeconds(now.getSeconds() - value);
+        break;
+      case 'minute':
+        now.setMinutes(now.getMinutes() - value);
+        break;
+      case 'hour':
+        now.setHours(now.getHours() - value);
+        break;
+      case 'day':
+        now.setDate(now.getDate() - value);
+        break;
+      case 'week':
+        now.setDate(now.getDate() - value * 7);
+        break;
+      case 'month':
+        now.setMonth(now.getMonth() - value);
+        break;
+      case 'year':
+        now.setFullYear(now.getFullYear() - value);
+        break;
     }
     return now.toISOString();
   }
 
-  return "";
+  return '';
 }
 
 export class MangaReaderProvider implements ContentProvider {
-  name = "mangapill";
-  displayName = "MangaPill";
-  type = "manga" as const;
+  name = 'mangapill';
+  displayName = 'MangaPill';
+  type = 'manga' as const;
   needsImageProxy = true;
-  imageHeaders = { Referer: "https://mangapill.com/" };
+  imageHeaders = { Referer: 'https://mangapill.com/' };
 
   private client = new MANGA.MangaPill();
 
@@ -82,13 +101,15 @@ export class MangaReaderProvider implements ContentProvider {
     return info.chapters.map((ch) => ({
       id: ch.id,
       title: (ch.title as string) ?? null,
-      chapter: parseChapterNumber(ch as { id: string; chapterNumber?: number; chapter?: string; title?: string }),
+      chapter: parseChapterNumber(
+        ch as { id: string; chapterNumber?: number; chapter?: string; title?: string }
+      ),
       volume: ch.volume != null ? String(ch.volume) : null,
       pages: 0,
-      translatedLanguage: "en",
+      translatedLanguage: 'en',
       publishAt: safeDate(ch.releaseDate as string | undefined),
-      scanlationGroup: "MangaPill",
-      source: "mangapill",
+      scanlationGroup: 'MangaPill',
+      source: 'mangapill',
     }));
   }
 
@@ -96,7 +117,7 @@ export class MangaReaderProvider implements ContentProvider {
     const data = await withTimeout(this.client.fetchChapterPages(chapterId), TIMEOUT_MS);
 
     return {
-      source: "mangapill",
+      source: 'mangapill',
       pages: (data ?? []).map((p, idx) => ({
         img: p.img,
         page: p.page ?? idx + 1,

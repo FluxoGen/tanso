@@ -1,14 +1,16 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useCallback } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { useAllReadingProgress } from "@/hooks/useReadingProgress";
-import { getCoverUrl } from "@/lib/mangadex";
-import { clearProgress } from "@/lib/storage";
-import { BookOpen, ChevronRight, Play, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import type { ReadingProgress } from "@/lib/storage";
+import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { useAllReadingProgress } from '@/hooks/useReadingProgress';
+import { resolveCoverUrl } from '@/lib/cover-utils';
+import { buildMangaUrl } from '@/lib/manga-urls';
+import { buildReadUrl } from '@/lib/read-urls';
+import { clearProgress } from '@/lib/storage';
+import { BookOpen, ChevronRight, Play, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { ReadingProgress } from '@/lib/storage';
 
 interface ContinueReadingProps {
   maxItems?: number;
@@ -44,8 +46,8 @@ export function ContinueReading({ maxItems = 6 }: ContinueReadingProps) {
         <div className="flex gap-4 overflow-hidden">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="w-40 shrink-0 space-y-2">
-              <div className="aspect-[3/4] rounded-lg bg-muted animate-pulse" />
-              <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />
+              <div className="bg-muted aspect-[3/4] animate-pulse rounded-lg" />
+              <div className="bg-muted h-4 w-3/4 animate-pulse rounded" />
             </div>
           ))}
         </div>
@@ -63,13 +65,13 @@ export function ContinueReading({ maxItems = 6 }: ContinueReadingProps) {
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <BookOpen className="h-5 w-5 text-primary" />
+          <BookOpen className="text-primary h-5 w-5" />
           <h2 className="text-lg font-semibold">Continue Reading</h2>
         </div>
         {progressList.length > maxItems && (
           <Link
             href="/history"
-            className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+            className="text-muted-foreground hover:text-primary flex items-center gap-1 text-sm transition-colors"
           >
             View all
             <ChevronRight className="h-4 w-4" />
@@ -77,13 +79,9 @@ export function ContinueReading({ maxItems = 6 }: ContinueReadingProps) {
         )}
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
+      <div className="scrollbar-none flex gap-4 overflow-x-auto pb-2">
         {items.map((progress) => (
-          <ContinueReadingCard
-            key={progress.mangaId}
-            progress={progress}
-            onRemove={handleRemove}
-          />
+          <ContinueReadingCard key={progress.mangaId} progress={progress} onRemove={handleRemove} />
         ))}
       </div>
     </section>
@@ -97,32 +95,25 @@ function ContinueReadingCard({
   progress: ReadingProgress;
   onRemove: (mangaId: string, e: React.MouseEvent) => void;
 }) {
-  // Build cover URL - coverUrl can be a filename or full URL
-  const coverUrl = (() => {
-    if (!progress.coverUrl) return null;
-    // If already a full URL, use it
-    if (progress.coverUrl.startsWith("http")) return progress.coverUrl;
-    // If it looks like a filename (has extension), build full URL
-    if (progress.coverUrl.includes(".")) {
-      return getCoverUrl(progress.mangaId, progress.coverUrl, "256");
-    }
-    return null;
-  })();
-
+  const coverUrl = resolveCoverUrl(progress.mangaId, progress.coverUrl, '256');
   const percentComplete = Math.round((progress.page / progress.totalPages) * 100);
   const chapterText = progress.chapterNumber
     ? `Ch. ${progress.chapterNumber}`
-    : progress.chapterTitle || "Chapter";
+    : progress.chapterTitle || 'Chapter';
 
-  const readUrl =
-    progress.source === "mangadex"
-      ? `/read/${progress.chapterId}?manga=${progress.mangaId}&title=${encodeURIComponent(progress.mangaTitle)}&cover=${encodeURIComponent(progress.coverUrl || "")}&page=${progress.page}`
-      : `/read/ext?manga=${progress.mangaId}&source=${encodeURIComponent(progress.source)}&chapterId=${encodeURIComponent(progress.chapterId)}&title=${encodeURIComponent(progress.mangaTitle)}&cover=${encodeURIComponent(progress.coverUrl || "")}&page=${progress.page}`;
+  const readUrl = buildReadUrl({
+    chapterId: progress.chapterId,
+    mangaId: progress.mangaId,
+    source: progress.source,
+    title: progress.mangaTitle,
+    cover: progress.coverUrl,
+    page: progress.page,
+  });
 
   return (
-    <div className="w-36 sm:w-40 shrink-0 group">
-      <Link href={readUrl} className="block relative">
-        <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-muted">
+    <div className="group w-36 shrink-0 sm:w-40">
+      <Link href={readUrl} className="relative block">
+        <div className="bg-muted relative aspect-[3/4] overflow-hidden rounded-lg">
           {coverUrl ? (
             <Image
               src={coverUrl}
@@ -132,14 +123,14 @@ function ContinueReadingCard({
               sizes="160px"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+            <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
               No Cover
             </div>
           )}
 
           {/* Play overlay */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
-            <div className="p-3 rounded-full bg-primary text-primary-foreground">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="bg-primary text-primary-foreground rounded-full p-3">
               <Play className="h-6 w-6 fill-current" />
             </div>
           </div>
@@ -147,16 +138,16 @@ function ContinueReadingCard({
           {/* Remove button */}
           <button
             onClick={(e) => onRemove(progress.mangaId, e)}
-            className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+            className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/80"
             title="Remove from Continue Reading"
           >
             <X className="h-3.5 w-3.5" />
           </button>
 
           {/* Progress bar */}
-          <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/50">
+          <div className="absolute right-0 bottom-0 left-0 h-1.5 bg-black/50">
             <div
-              className="h-full bg-primary transition-all"
+              className="bg-primary h-full transition-all"
               style={{ width: `${percentComplete}%` }}
             />
           </div>
@@ -165,12 +156,12 @@ function ContinueReadingCard({
 
       <div className="mt-2 space-y-0.5">
         <Link
-          href={`/manga/${progress.mangaId}`}
-          className="text-sm font-medium leading-tight line-clamp-2 hover:text-primary transition-colors"
+          href={buildMangaUrl(progress.mangaId, progress.mangaTitle)}
+          className="hover:text-primary line-clamp-2 text-sm leading-tight font-medium transition-colors"
         >
           {progress.mangaTitle}
         </Link>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-muted-foreground text-xs">
           {chapterText} · {percentComplete}%
         </p>
       </div>

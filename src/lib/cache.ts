@@ -8,7 +8,7 @@ export class TTLCache<T> {
 
   constructor(
     private maxSize: number,
-    private ttlMs: number,
+    private ttlMs: number
   ) {}
 
   get(key: string): T | undefined {
@@ -37,5 +37,5 @@ export class TTLCache<T> {
 const THIRTY_MINUTES = 30 * 60 * 1000;
 const ONE_HOUR = 60 * 60 * 1000;
 
-export const sourceCache = new TTLCache<import("@/types/manga").MangaSource[]>(500, THIRTY_MINUTES);
-export const chapterCache = new TTLCache<import("@/types/manga").Chapter[]>(200, ONE_HOUR);
+export const sourceCache = new TTLCache<import('@/types/manga').MangaSource[]>(500, THIRTY_MINUTES);
+export const chapterCache = new TTLCache<import('@/types/manga').Chapter[]>(200, ONE_HOUR);

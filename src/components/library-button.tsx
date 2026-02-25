@@ -1,17 +1,17 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useRef } from "react";
-import { useLibraryStatus, LIBRARY_STATUS_LABELS, LIBRARY_STATUS_COLORS } from "@/hooks/useLibrary";
-import type { LibraryStatus } from "@/lib/storage";
-import { cn } from "@/lib/utils";
-import { BookPlus, Check, ChevronDown, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from 'react';
+import { useLibraryStatus, LIBRARY_STATUS_LABELS, LIBRARY_STATUS_COLORS } from '@/hooks/useLibrary';
+import type { LibraryStatus } from '@/lib/storage';
+import { cn } from '@/lib/utils';
+import { BookPlus, Check, ChevronDown, Loader2 } from 'lucide-react';
 
 const STATUS_OPTIONS: LibraryStatus[] = [
-  "reading",
-  "plan_to_read",
-  "completed",
-  "on_hold",
-  "dropped",
+  'reading',
+  'plan_to_read',
+  'completed',
+  'on_hold',
+  'dropped',
 ];
 
 interface LibraryButtonProps {
@@ -26,8 +26,7 @@ export function LibraryButton({ mangaId, title, coverUrl }: LibraryButtonProps) 
   const [isAnimating, setIsAnimating] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { entry, isInLibrary, isLoading, add, updateStatus, remove } =
-    useLibraryStatus(mangaId);
+  const { entry, isInLibrary, isLoading, add, updateStatus, remove } = useLibraryStatus(mangaId);
 
   useEffect(() => {
     setMounted(true);
@@ -41,11 +40,11 @@ export function LibraryButton({ mangaId, title, coverUrl }: LibraryButtonProps) 
     };
 
     if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
 
@@ -69,7 +68,7 @@ export function LibraryButton({ mangaId, title, coverUrl }: LibraryButtonProps) 
     return (
       <button
         disabled
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-muted text-muted-foreground"
+        className="bg-muted text-muted-foreground inline-flex items-center gap-2 rounded-md px-4 py-2"
       >
         <Loader2 className="h-4 w-4 animate-spin" />
         <span>Loading...</span>
@@ -82,19 +81,15 @@ export function LibraryButton({ mangaId, title, coverUrl }: LibraryButtonProps) 
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "inline-flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all duration-200",
+          'inline-flex items-center gap-2 rounded-md px-4 py-2 font-medium transition-all duration-200',
           isInLibrary
-            ? cn(
-                "text-sm",
-                LIBRARY_STATUS_COLORS[entry!.status],
-                isAnimating && "scale-105"
-              )
-            : "bg-primary text-primary-foreground hover:bg-primary/90"
+            ? cn('text-sm', LIBRARY_STATUS_COLORS[entry!.status], isAnimating && 'scale-105')
+            : 'bg-primary text-primary-foreground hover:bg-primary/90'
         )}
       >
         {isInLibrary ? (
           <>
-            <Check className={cn("h-4 w-4", isAnimating && "animate-bounce")} />
+            <Check className={cn('h-4 w-4', isAnimating && 'animate-bounce')} />
             <span>{LIBRARY_STATUS_LABELS[entry!.status]}</span>
           </>
         ) : (
@@ -103,30 +98,25 @@ export function LibraryButton({ mangaId, title, coverUrl }: LibraryButtonProps) 
             <span>Add to Library</span>
           </>
         )}
-        <ChevronDown
-          className={cn(
-            "h-4 w-4 transition-transform",
-            isOpen && "rotate-180"
-          )}
-        />
+        <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 z-50 min-w-[180px] bg-popover rounded-lg shadow-lg border overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150">
+        <div className="bg-popover animate-in fade-in-0 zoom-in-95 absolute top-full left-0 z-50 mt-2 min-w-[180px] overflow-hidden rounded-lg border shadow-lg duration-150">
           <div className="p-1">
             {STATUS_OPTIONS.map((status) => (
               <button
                 key={status}
                 onClick={() => handleStatusSelect(status)}
                 className={cn(
-                  "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                  'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
                   entry?.status === status
-                    ? "bg-accent text-accent-foreground"
-                    : "hover:bg-accent/50"
+                    ? 'bg-accent text-accent-foreground'
+                    : 'hover:bg-accent/50'
                 )}
               >
                 {entry?.status === status && <Check className="h-4 w-4" />}
-                <span className={entry?.status !== status ? "ml-6" : ""}>
+                <span className={entry?.status !== status ? 'ml-6' : ''}>
                   {LIBRARY_STATUS_LABELS[status]}
                 </span>
               </button>
@@ -138,7 +128,7 @@ export function LibraryButton({ mangaId, title, coverUrl }: LibraryButtonProps) 
               <div className="p-1">
                 <button
                   onClick={handleRemove}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md text-destructive hover:bg-destructive/10 transition-colors"
+                  className="text-destructive hover:bg-destructive/10 flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors"
                 >
                   <span className="ml-6">Remove from Library</span>
                 </button>

@@ -1,7 +1,7 @@
-import type { AniListMedia, AniListResponse } from "@/types/anilist";
-import { fetchWithRetry } from "./fetch-utils";
+import type { AniListMedia, AniListResponse } from '@/types/anilist';
+import { fetchWithRetry } from './fetch-utils';
 
-const ANILIST_URL = "https://graphql.anilist.co";
+const ANILIST_URL = 'https://graphql.anilist.co';
 
 const MANGA_QUERY = `
 query ($search: String) {
@@ -54,8 +54,8 @@ query ($search: String) {
 export async function searchAniListManga(title: string): Promise<AniListMedia | null> {
   try {
     const res = await fetchWithRetry(ANILIST_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: MANGA_QUERY, variables: { search: title } }),
     });
 

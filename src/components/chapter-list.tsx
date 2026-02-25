@@ -1,13 +1,15 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useEffect, useState, useRef, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { getReadChapters, getProgress } from "@/lib/storage";
-import { Check, BookOpen } from "lucide-react";
-import { cn } from "@/lib/utils";
-import type { Chapter, MangaSource } from "@/types/manga";
+import Link from 'next/link';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { buildReadUrl } from '@/lib/read-urls';
+import { getReadChapters, getProgress } from '@/lib/storage';
+import { ErrorState } from '@/components/error-state';
+import { Check, BookOpen } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { Chapter, MangaSource } from '@/types/manga';
 
 interface ChapterListProps {
   mangaId: string;
@@ -20,7 +22,14 @@ interface ChapterListProps {
 
 const CHAPTERS_PER_PAGE = 30;
 
-export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChapter, anilistId }: ChapterListProps) {
+export function ChapterList({
+  mangaId,
+  mangaTitle,
+  coverUrl,
+  altTitles,
+  lastChapter,
+  anilistId,
+}: ChapterListProps) {
   const [sources, setSources] = useState<MangaSource[]>([]);
   const [selectedSource, setSelectedSource] = useState<MangaSource | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -39,12 +48,13 @@ export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChap
     const loadReadStatus = () => {
       const readList = getReadChapters(mangaId);
       setReadChapters(new Set(readList));
-      
+
       const progress = getProgress(mangaId);
       if (progress) {
         setCurrentReadingChapter(progress.chapterId);
         // Check if the current reading session is complete (at or past the last page)
-        const isSessionComplete = progress.totalPages > 0 && progress.page >= progress.totalPages - 1;
+        const isSessionComplete =
+          progress.totalPages > 0 && progress.page >= progress.totalPages - 1;
         setCurrentSessionComplete(isSessionComplete);
       } else {
         setCurrentReadingChapter(null);
@@ -56,7 +66,7 @@ export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChap
 
     // Listen for storage changes (cross-tab only)
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "tanso:chapters_read" || e.key === "tanso:progress") {
+      if (e.key === 'tanso:chapters_read' || e.key === 'tanso:progress') {
         loadReadStatus();
       }
     };
@@ -68,7 +78,7 @@ export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChap
 
     // Refresh when page becomes visible (back/forward navigation)
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
+      if (document.visibilityState === 'visible') {
         loadReadStatus();
       }
     };
@@ -80,25 +90,25 @@ export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChap
       }
     };
 
-    window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', handlePageShow);
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handlePageShow);
     };
   }, [mangaId]);
 
   // Discover sources progressively
   useEffect(() => {
     const params = new URLSearchParams({ title: mangaTitle });
-    if (lastChapter) params.set("lastChapter", lastChapter);
-    if (anilistId) params.set("anilistId", anilistId);
-    if (altTitles?.length) params.set("altTitles", altTitles.join("||"));
+    if (lastChapter) params.set('lastChapter', lastChapter);
+    if (anilistId) params.set('anilistId', anilistId);
+    if (altTitles?.length) params.set('altTitles', altTitles.join('||'));
 
     fetch(`/api/manga/${mangaId}/sources?${params}`)
       .then((r) => r.json())
@@ -125,7 +135,7 @@ export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChap
       setChapterError(null);
 
       let url: string;
-      if (source.provider === "mangadex") {
+      if (source.provider === 'mangadex') {
         url = `/api/manga/${mangaId}/chapters?source=mangadex&page=${pg}`;
       } else {
         url = `/api/manga/${mangaId}/chapters?source=${source.provider}&sourceId=${encodeURIComponent(source.sourceId)}`;
@@ -139,25 +149,25 @@ export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChap
           setChapters(data);
           setTotal(fetchedTotal);
 
-          const realCount = source.provider === "mangadex" ? fetchedTotal : data.length;
+          const realCount = source.provider === 'mangadex' ? fetchedTotal : data.length;
           if (realCount > 0 && source.chapterCount === 0) {
             setSources((prev) =>
               prev.map((s) =>
                 s.provider === source.provider && s.sourceId === source.sourceId
                   ? { ...s, chapterCount: realCount }
-                  : s,
-              ),
+                  : s
+              )
             );
           }
         })
         .catch((e) => {
-          if (e.name !== "AbortError") {
+          if (e.name !== 'AbortError') {
             setChapterError(`Failed to load chapters from ${source.displayName}.`);
           }
         })
         .finally(() => setLoading(false));
     },
-    [mangaId],
+    [mangaId]
   );
 
   useEffect(() => {
@@ -173,7 +183,7 @@ export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChap
   };
 
   // For non-MangaDex sources, do client-side pagination
-  const isMangaDex = selectedSource?.provider === "mangadex";
+  const isMangaDex = selectedSource?.provider === 'mangadex';
   const displayChapters = isMangaDex
     ? chapters
     : chapters.slice((page - 1) * CHAPTERS_PER_PAGE, page * CHAPTERS_PER_PAGE);
@@ -184,34 +194,32 @@ export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChap
   return (
     <div className="space-y-4">
       {/* Source tabs */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-wrap items-center gap-2">
         {sources.map((s) => (
           <button
             key={`${s.provider}:${s.sourceId}`}
             onClick={() => handleSourceChange(s)}
             className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
               selectedSource?.provider === s.provider && selectedSource?.sourceId === s.sourceId
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-accent"
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground hover:bg-accent'
             }`}
           >
             <span>{s.displayName}</span>
-            <span className="opacity-75">({s.chapterCount || "?"})</span>
+            <span className="opacity-75">({s.chapterCount || '?'})</span>
           </button>
         ))}
 
         {sourcesLoading && (
           <div className="flex items-center gap-2">
             <Skeleton className="h-8 w-32 rounded-full" />
-            <span className="text-xs text-muted-foreground">Discovering sources...</span>
+            <span className="text-muted-foreground text-xs">Discovering sources...</span>
           </div>
         )}
       </div>
 
-      {!sourcesLoading && sources.length <= 1 && sources[0]?.provider === "mangadex" && (
-        <p className="text-xs text-muted-foreground">
-          Only MangaDex available for this title.
-        </p>
+      {!sourcesLoading && sources.length <= 1 && sources[0]?.provider === 'mangadex' && (
+        <p className="text-muted-foreground text-xs">Only MangaDex available for this title.</p>
       )}
 
       {/* Chapter list */}
@@ -222,21 +230,16 @@ export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChap
           ))}
         </div>
       ) : chapterError ? (
-        <div className="flex flex-col items-center gap-3 py-8">
-          <p className="text-sm text-muted-foreground">{chapterError}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => selectedSource && fetchChapters(selectedSource, page)}
-          >
-            Try again
-          </Button>
-        </div>
+        <ErrorState
+          error={chapterError}
+          onRetry={() => selectedSource && fetchChapters(selectedSource, page)}
+          showHomeLink={false}
+        />
       ) : displayChapters.length === 0 ? (
         <p className="text-muted-foreground py-4">
           {selectedSource
             ? `No chapters found on ${selectedSource.displayName}.`
-            : "No chapters available."}
+            : 'No chapters available.'}
         </p>
       ) : (
         <div className="space-y-1">
@@ -267,7 +270,7 @@ export function ChapterList({ mangaId, mangaTitle, coverUrl, altTitles, lastChap
           >
             Previous
           </Button>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-muted-foreground text-sm">
             Page {page} of {totalPages}
           </span>
           <Button
@@ -295,18 +298,29 @@ interface ChapterRowProps {
   isCurrentSessionComplete: boolean;
 }
 
-function ChapterRow({ ch, mangaId, mangaTitle, coverUrl, sourceId, isRead, isReading, isCurrentSessionComplete }: ChapterRowProps) {
-  const coverParam = coverUrl ? `&cover=${encodeURIComponent(coverUrl)}` : "";
-  const sourceIdParam = sourceId && ch.source !== "mangadex" ? `&sourceId=${encodeURIComponent(sourceId)}` : "";
-  const href =
-    ch.source === "mangadex"
-      ? `/read/${ch.id}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}${coverParam}`
-      : `/read/ext?manga=${mangaId}&source=${ch.source}&chapterId=${encodeURIComponent(ch.id)}&title=${encodeURIComponent(mangaTitle)}${coverParam}${sourceIdParam}`;
+function ChapterRow({
+  ch,
+  mangaId,
+  mangaTitle,
+  coverUrl,
+  sourceId,
+  isRead,
+  isReading,
+  isCurrentSessionComplete,
+}: ChapterRowProps) {
+  const href = buildReadUrl({
+    chapterId: ch.id,
+    mangaId,
+    source: ch.source,
+    title: mangaTitle,
+    cover: coverUrl,
+    sourceId: ch.source !== 'mangadex' ? sourceId : undefined,
+  });
 
   // A chapter shows as "reading" (book icon) if:
   // 1. It's the current chapter being read (isReading), AND
   // 2. The current reading session is NOT complete (user hasn't reached the last page yet)
-  // 
+  //
   // A chapter shows as "completed" (checkmark) if:
   // 1. It was completed previously (isRead), OR
   // 2. It's the current chapter AND the current session is complete
@@ -317,76 +331,85 @@ function ChapterRow({ ch, mangaId, mangaTitle, coverUrl, sourceId, isRead, isRea
     <Link
       href={href}
       className={cn(
-        "block rounded-md px-3 py-2.5 text-sm transition-colors relative",
+        'relative block rounded-md px-3 py-2.5 text-sm transition-colors',
         effectiveIsReading
-          ? "bg-primary/10 hover:bg-primary/15 border-l-2 border-primary"
+          ? 'bg-primary/10 hover:bg-primary/15 border-primary border-l-2'
           : effectiveIsRead
-          ? "bg-muted/50 hover:bg-accent"
-          : "hover:bg-accent"
+            ? 'bg-muted/50 hover:bg-accent'
+            : 'hover:bg-accent'
       )}
     >
       {/* Mobile layout */}
-      <div className="sm:hidden space-y-1">
+      <div className="space-y-1 sm:hidden">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {effectiveIsReading ? (
-              <BookOpen className="h-4 w-4 text-primary shrink-0" />
+              <BookOpen className="text-primary h-4 w-4 shrink-0" />
             ) : effectiveIsRead ? (
-              <Check className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Check className="text-muted-foreground h-4 w-4 shrink-0" />
             ) : (
               <span className="w-4 shrink-0" />
             )}
-            <span className={cn("font-medium", effectiveIsRead && "text-muted-foreground")}>
-              {ch.volume ? `Vol. ${ch.volume} ` : ""}Ch. {ch.chapter ?? "—"}
+            <span className={cn('font-medium', effectiveIsRead && 'text-muted-foreground')}>
+              {ch.volume ? `Vol. ${ch.volume} ` : ''}Ch. {ch.chapter ?? '—'}
             </span>
           </div>
           {ch.publishAt && (
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
+            <span className="text-muted-foreground text-xs whitespace-nowrap">
               {new Date(ch.publishAt).toLocaleDateString()}
             </span>
           )}
         </div>
         {ch.title && (
-          <p className={cn("text-sm ml-6", effectiveIsRead ? "text-muted-foreground/70" : "text-muted-foreground")}>
+          <p
+            className={cn(
+              'ml-6 text-sm',
+              effectiveIsRead ? 'text-muted-foreground/70' : 'text-muted-foreground'
+            )}
+          >
             {ch.title}
           </p>
         )}
         {ch.scanlationGroup && (
-          <p className="text-xs text-muted-foreground/70 ml-6">
-            {ch.scanlationGroup}
-          </p>
+          <p className="text-muted-foreground/70 ml-6 text-xs">{ch.scanlationGroup}</p>
         )}
       </div>
 
       {/* Desktop layout */}
-      <div className="hidden sm:flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="flex items-center gap-2 shrink-0">
+      <div className="hidden items-center justify-between gap-4 sm:flex">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2">
             {effectiveIsReading ? (
-              <BookOpen className="h-4 w-4 text-primary" />
+              <BookOpen className="text-primary h-4 w-4" />
             ) : effectiveIsRead ? (
-              <Check className="h-4 w-4 text-muted-foreground" />
+              <Check className="text-muted-foreground h-4 w-4" />
             ) : (
               <span className="w-4" />
             )}
-            <span className={cn("font-medium whitespace-nowrap", effectiveIsRead && "text-muted-foreground")}>
-              {ch.volume ? `Vol. ${ch.volume} ` : ""}Ch. {ch.chapter ?? "—"}
+            <span
+              className={cn(
+                'font-medium whitespace-nowrap',
+                effectiveIsRead && 'text-muted-foreground'
+              )}
+            >
+              {ch.volume ? `Vol. ${ch.volume} ` : ''}Ch. {ch.chapter ?? '—'}
             </span>
           </div>
           {ch.title && (
-            <span className={cn("truncate", effectiveIsRead ? "text-muted-foreground/70" : "text-muted-foreground")}>
+            <span
+              className={cn(
+                'truncate',
+                effectiveIsRead ? 'text-muted-foreground/70' : 'text-muted-foreground'
+              )}
+            >
               {ch.title}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
-          {ch.scanlationGroup && (
-            <span className="whitespace-nowrap">{ch.scanlationGroup}</span>
-          )}
+        <div className="text-muted-foreground flex shrink-0 items-center gap-3 text-xs">
+          {ch.scanlationGroup && <span className="whitespace-nowrap">{ch.scanlationGroup}</span>}
           {ch.publishAt && (
-            <span className="whitespace-nowrap">
-              {new Date(ch.publishAt).toLocaleDateString()}
-            </span>
+            <span className="whitespace-nowrap">{new Date(ch.publishAt).toLocaleDateString()}</span>
           )}
         </div>
       </div>
@@ -395,7 +418,7 @@ function ChapterRow({ ch, mangaId, mangaTitle, coverUrl, sourceId, isRead, isRea
 }
 
 function pickDefaultSource(sources: MangaSource[], lastChapter: string | null): MangaSource {
-  const mdSource = sources.find((s) => s.provider === "mangadex");
+  const mdSource = sources.find((s) => s.provider === 'mangadex');
   const expected = lastChapter ? parseInt(lastChapter, 10) : 0;
 
   if (mdSource && expected > 0 && mdSource.chapterCount >= expected * 0.8) {

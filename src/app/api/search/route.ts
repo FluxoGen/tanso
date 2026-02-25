@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
-import { searchManga } from "@/lib/mangadex";
-import { searchAniListManga } from "@/lib/anilist";
-import type { Manga, PaginatedResponse } from "@/types/manga";
+import { NextRequest, NextResponse } from 'next/server';
+import { searchManga } from '@/lib/mangadex';
+import { searchAniListManga } from '@/lib/anilist';
+import type { Manga, PaginatedResponse } from '@/types/manga';
 
 function mergeResults(
   primary: PaginatedResponse<Manga>,
   secondary: PaginatedResponse<Manga>,
-  limit: number,
+  limit: number
 ): PaginatedResponse<Manga> {
   const seenIds = new Set(primary.data.map((m) => m.id));
   const unique = secondary.data.filter((m) => !seenIds.has(m.id));
@@ -21,18 +21,23 @@ function mergeResults(
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const q = searchParams.get("q") ?? "";
-    const page = parseInt(searchParams.get("page") ?? "1", 10);
-    const genres = searchParams.getAll("genres");
-    const ratings = searchParams.getAll("ratings");
+    const q = searchParams.get('q') ?? '';
+    const page = parseInt(searchParams.get('page') ?? '1', 10);
+    const tags = searchParams.getAll('tags');
+    const ratings = searchParams.getAll('ratings');
     const limit = 20;
     const offset = (page - 1) * limit;
-    const tagFilters = genres.length ? genres : undefined;
+    const tagFilters = tags.length ? tags : undefined;
 
     const contentRatings = ratings.length ? ratings : undefined;
 
     if (!q) {
-      const result = await searchManga("", { limit, offset, includedTags: tagFilters, contentRatings });
+      const result = await searchManga('', {
+        limit,
+        offset,
+        includedTags: tagFilters,
+        contentRatings,
+      });
       return NextResponse.json(result);
     }
 
@@ -42,8 +47,9 @@ export async function GET(request: NextRequest) {
     ]);
 
     const altTitles = anilistMedia
-      ? [anilistMedia.title.romaji, anilistMedia.title.english]
-          .filter((t): t is string => !!t && t.toLowerCase() !== q.toLowerCase())
+      ? [anilistMedia.title.romaji, anilistMedia.title.english].filter(
+          (t): t is string => !!t && t.toLowerCase() !== q.toLowerCase()
+        )
       : [];
 
     if (altTitles.length === 0) {
@@ -52,7 +58,12 @@ export async function GET(request: NextRequest) {
 
     // AniList suggests a different canonical title — search MangaDex with it
     for (const altTitle of altTitles) {
-      const altResult = await searchManga(altTitle, { limit, offset, includedTags: tagFilters, contentRatings });
+      const altResult = await searchManga(altTitle, {
+        limit,
+        offset,
+        includedTags: tagFilters,
+        contentRatings,
+      });
       if (altResult.data.length === 0) continue;
 
       if (mdResult.data.length === 0) {
@@ -65,6 +76,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(mdResult);
   } catch {
-    return NextResponse.json({ error: "Failed to search manga" }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to search manga' }, { status: 500 });
   }
 }

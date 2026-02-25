@@ -5,13 +5,13 @@
 
 // Storage keys
 const STORAGE_KEYS = {
-  PROGRESS: "tanso:progress",
-  HISTORY: "tanso:history",
-  LIBRARY: "tanso:library",
+  PROGRESS: 'tanso:progress',
+  HISTORY: 'tanso:history',
+  LIBRARY: 'tanso:library',
 } as const;
 
 // Types
-export type LibraryStatus = "reading" | "plan_to_read" | "completed" | "on_hold" | "dropped";
+export type LibraryStatus = 'reading' | 'plan_to_read' | 'completed' | 'on_hold' | 'dropped';
 
 export interface ReadingProgress {
   mangaId: string;
@@ -48,7 +48,7 @@ export interface LibraryEntry {
 
 // Helper to check if we're in a browser environment
 function isBrowser(): boolean {
-  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 }
 
 // Generic storage helpers
@@ -121,23 +121,23 @@ export function getHistory(): HistoryEntry[] {
   return getStorageItem<HistoryEntry[]>(STORAGE_KEYS.HISTORY, []);
 }
 
-export function addToHistory(entry: Omit<HistoryEntry, "lastReadAt">): void {
+export function addToHistory(entry: Omit<HistoryEntry, 'lastReadAt'>): void {
   let history = getHistory();
-  
+
   // Remove existing entry for this manga if present
   history = history.filter((h) => h.mangaId !== entry.mangaId);
-  
+
   // Add new entry at the beginning
   history.unshift({
     ...entry,
     lastReadAt: Date.now(),
   });
-  
+
   // Limit history size
   if (history.length > MAX_HISTORY_ENTRIES) {
     history = history.slice(0, MAX_HISTORY_ENTRIES);
   }
-  
+
   setStorageItem(STORAGE_KEYS.HISTORY, history);
 }
 
@@ -178,11 +178,11 @@ export function addToLibrary(
   mangaId: string,
   title: string,
   coverUrl: string | null,
-  status: LibraryStatus = "plan_to_read"
+  status: LibraryStatus = 'plan_to_read'
 ): void {
   const libraryMap = getStorageItem<LibraryMap>(STORAGE_KEYS.LIBRARY, {});
   const now = Date.now();
-  
+
   libraryMap[mangaId] = {
     mangaId,
     title,
@@ -191,13 +191,13 @@ export function addToLibrary(
     addedAt: libraryMap[mangaId]?.addedAt ?? now,
     updatedAt: now,
   };
-  
+
   setStorageItem(STORAGE_KEYS.LIBRARY, libraryMap);
 }
 
 export function updateLibraryStatus(mangaId: string, status: LibraryStatus): void {
   const libraryMap = getStorageItem<LibraryMap>(STORAGE_KEYS.LIBRARY, {});
-  
+
   if (libraryMap[mangaId]) {
     libraryMap[mangaId] = {
       ...libraryMap[mangaId],
@@ -223,7 +223,7 @@ export function clearLibrary(): void {
 // ============================================
 
 type ChapterReadMap = Record<string, Set<string>>;
-const CHAPTER_READ_KEY = "tanso:chapters_read";
+const CHAPTER_READ_KEY = 'tanso:chapters_read';
 
 function getChapterReadMap(): Record<string, string[]> {
   return getStorageItem<Record<string, string[]>>(CHAPTER_READ_KEY, {});
@@ -241,11 +241,11 @@ export function getReadChapters(mangaId: string): string[] {
 
 export function markChapterAsRead(mangaId: string, chapterId: string): void {
   const readMap = getChapterReadMap();
-  
+
   if (!readMap[mangaId]) {
     readMap[mangaId] = [];
   }
-  
+
   if (!readMap[mangaId].includes(chapterId)) {
     readMap[mangaId].push(chapterId);
     setStorageItem(CHAPTER_READ_KEY, readMap);
@@ -254,7 +254,7 @@ export function markChapterAsRead(mangaId: string, chapterId: string): void {
 
 export function markChapterAsUnread(mangaId: string, chapterId: string): void {
   const readMap = getChapterReadMap();
-  
+
   if (readMap[mangaId]) {
     readMap[mangaId] = readMap[mangaId].filter((id) => id !== chapterId);
     setStorageItem(CHAPTER_READ_KEY, readMap);

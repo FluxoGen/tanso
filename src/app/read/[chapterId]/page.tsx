@@ -1,17 +1,19 @@
-"use client";
+'use client';
 
-import Image from "next/image";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useState, useCallback, useRef, use, Suspense, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import { ScrollToTop } from "@/components/scroll-to-top";
-import { useReadingProgress } from "@/hooks/useReadingProgress";
-import { addToHistory, markChapterAsRead } from "@/lib/storage";
-import { ChevronLeft, ChevronRight, Keyboard } from "lucide-react";
-import type { ChapterPagesResponse } from "@/types/manga";
+import Image from 'next/image';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState, useCallback, useRef, use, Suspense, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { ScrollToTop } from '@/components/scroll-to-top';
+import { useReadingProgress } from '@/hooks/useReadingProgress';
+import { buildMangaUrl } from '@/lib/manga-urls';
+import { buildReadUrl } from '@/lib/read-urls';
+import { addToHistory, markChapterAsRead } from '@/lib/storage';
+import { ChevronLeft, ChevronRight, Keyboard } from 'lucide-react';
+import type { ChapterPagesResponse } from '@/types/manga';
 
-type ReadingMode = "paged" | "longstrip";
+type ReadingMode = 'paged' | 'longstrip';
 
 interface ChapterNavInfo {
   prevChapterId: string | null;
@@ -20,19 +22,27 @@ interface ChapterNavInfo {
   chapterTitle: string | null;
 }
 
-function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; source: string; sourceId?: string | null }) {
+function ReaderContent({
+  chapterId,
+  source,
+  sourceId,
+}: {
+  chapterId: string;
+  source: string;
+  sourceId?: string | null;
+}) {
   const searchParams = useSearchParams();
-  const mangaId = searchParams.get("manga");
-  const mangaTitle = searchParams.get("title") || "Manga";
-  const coverUrl = searchParams.get("cover") || null;
-  const initialPage = parseInt(searchParams.get("page") || "0", 10);
-  const effectiveSourceId = sourceId || searchParams.get("sourceId");
+  const mangaId = searchParams.get('manga');
+  const mangaTitle = searchParams.get('title') || 'Manga';
+  const coverUrl = searchParams.get('cover') || null;
+  const initialPage = parseInt(searchParams.get('page') || '0', 10);
+  const effectiveSourceId = sourceId || searchParams.get('sourceId');
 
   const [pages, setPages] = useState<ChapterPagesResponse | null>(null);
   const [currentPage, setCurrentPage] = useState(initialPage);
-  const [quality, setQuality] = useState<"data" | "data-saver">("data");
+  const [quality, setQuality] = useState<'data' | 'data-saver'>('data');
   const [loading, setLoading] = useState(true);
-  const [readingMode, setReadingMode] = useState<ReadingMode>("paged");
+  const [readingMode, setReadingMode] = useState<ReadingMode>('paged');
   const [chapterNav, setChapterNav] = useState<ChapterNavInfo | null>(null);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const probeRef = useRef(false);
@@ -42,7 +52,7 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
 
   useEffect(() => {
     let url: string;
-    if (source === "mangadex") {
+    if (source === 'mangadex') {
       url = `/api/chapter/${chapterId}`;
     } else {
       url = `/api/chapter/resolve?source=${encodeURIComponent(source)}&chapterId=${encodeURIComponent(chapterId)}`;
@@ -66,16 +76,16 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
   // Fetch chapter navigation info
   useEffect(() => {
     if (!mangaId) return;
-    
+
     // Build URL with source info for non-MangaDex chapters
     let url = `/api/manga/${mangaId}/chapters?chapterId=${chapterId}`;
-    if (source !== "mangadex") {
+    if (source !== 'mangadex') {
       url += `&source=${encodeURIComponent(source)}`;
       if (effectiveSourceId) {
         url += `&sourceId=${encodeURIComponent(effectiveSourceId)}`;
       }
     }
-    
+
     fetch(url)
       .then((r) => r.json())
       .then((json) => {
@@ -86,41 +96,43 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
       .catch(() => {});
   }, [mangaId, chapterId, source, effectiveSourceId]);
 
-  const isMangaDex = pages != null && "hash" in pages;
+  const isMangaDex = pages != null && 'hash' in pages;
   const totalPages = (() => {
     if (!pages) return 0;
-    if ("hash" in pages) return pages.data.length;
+    if ('hash' in pages) return pages.data.length;
     return pages.pages.length;
   })();
 
-  const PROXIED_SOURCES = new Set(["mangapill"]);
+  const PROXIED_SOURCES = new Set(['mangapill']);
 
   const getImageUrl = useCallback(
     (idx: number): string => {
-      if (!pages) return "";
-      if ("hash" in pages) {
-        const fileList = quality === "data" ? pages.data : pages.dataSaver;
+      if (!pages) return '';
+      if ('hash' in pages) {
+        const fileList = quality === 'data' ? pages.data : pages.dataSaver;
         return `${pages.baseUrl}/${quality}/${pages.hash}/${fileList[idx]}`;
       }
-      const directUrl = pages.pages[idx]?.img ?? "";
-      if (!directUrl) return "";
+      const directUrl = pages.pages[idx]?.img ?? '';
+      if (!directUrl) return '';
       if (PROXIED_SOURCES.has(source)) {
         return `/api/proxy-image?url=${encodeURIComponent(directUrl)}&source=${encodeURIComponent(source)}`;
       }
       return directUrl;
     },
-    [pages, quality, source],
+    [pages, quality, source]
   );
 
   // Build chapter navigation URLs (must be computed before useEffect that uses them)
   const { prevChapterUrl, nextChapterUrl } = useMemo(() => {
-    const buildChapterUrl = (targetChapterId: string) => {
-      if (source === "mangadex") {
-        return `/read/${targetChapterId}?manga=${mangaId}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}`;
-      }
-      const sourceIdParam = effectiveSourceId ? `&sourceId=${encodeURIComponent(effectiveSourceId)}` : "";
-      return `/read/ext?manga=${mangaId}&source=${encodeURIComponent(source)}&chapterId=${encodeURIComponent(targetChapterId)}&title=${encodeURIComponent(mangaTitle)}&cover=${encodeURIComponent(coverUrl || "")}${sourceIdParam}`;
-    };
+    const buildChapterUrl = (targetChapterId: string) =>
+      buildReadUrl({
+        chapterId: targetChapterId,
+        mangaId: mangaId ?? undefined,
+        source,
+        title: mangaTitle,
+        cover: coverUrl,
+        sourceId: effectiveSourceId ?? undefined,
+      });
 
     return {
       prevChapterUrl: chapterNav?.prevChapterId ? buildChapterUrl(chapterNav.prevChapterId) : null,
@@ -138,7 +150,7 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
     img.onload = () => {
       const ratio = img.naturalHeight / img.naturalWidth;
       if (ratio > 3) {
-        setReadingMode("longstrip");
+        setReadingMode('longstrip');
       }
     };
     img.onerror = () => {};
@@ -149,7 +161,7 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
     (page: number) => {
       if (page >= 0 && page < totalPages) {
         setCurrentPage(page);
-        window.scrollTo({ top: 0, behavior: "instant" });
+        window.scrollTo({ top: 0, behavior: 'instant' });
 
         // Save progress only if user has read past page 1 (to avoid cluttering with accidental opens)
         if (mangaId && page > 0) {
@@ -167,7 +179,7 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
         }
       }
     },
-    [totalPages, mangaId, mangaTitle, coverUrl, chapterId, chapterNav, source, updateProgress],
+    [totalPages, mangaId, mangaTitle, coverUrl, chapterId, chapterNav, source, updateProgress]
   );
 
   // Add to history when entering chapter
@@ -187,7 +199,7 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
 
   // Mark chapter as read when reaching last page (paged mode)
   useEffect(() => {
-    if (readingMode === "paged" && mangaId && currentPage >= totalPages - 1 && totalPages > 0) {
+    if (readingMode === 'paged' && mangaId && currentPage >= totalPages - 1 && totalPages > 0) {
       completeChapter(chapterId);
       markChapterAsRead(mangaId, chapterId);
     }
@@ -198,13 +210,14 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
 
   // Mark chapter as read when scrolling to end in longstrip mode
   useEffect(() => {
-    if (readingMode !== "longstrip" || !mangaId || totalPages === 0 || longstripReadRef.current) return;
+    if (readingMode !== 'longstrip' || !mangaId || totalPages === 0 || longstripReadRef.current)
+      return;
 
     const handleScroll = () => {
       // Check if we're near the bottom of the page (within 200px)
-      const scrolledToBottom = 
+      const scrolledToBottom =
         window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 200;
-      
+
       if (scrolledToBottom && !longstripReadRef.current) {
         longstripReadRef.current = true;
         completeChapter(chapterId);
@@ -212,8 +225,8 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
       }
     };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
   }, [readingMode, mangaId, totalPages, chapterId, completeChapter]);
 
   // Save progress when leaving page
@@ -226,37 +239,37 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       // Show/hide keyboard help
-      if (e.key === "?" || e.key === "h" || e.key === "H") {
+      if (e.key === '?' || e.key === 'h' || e.key === 'H') {
         setShowKeyboardHelp((v) => !v);
         return;
       }
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         setShowKeyboardHelp(false);
         return;
       }
 
-      if (readingMode !== "paged") return;
-      
-      if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
+      if (readingMode !== 'paged') return;
+
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
         goTo(currentPage + 1);
-      } else if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
+      } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
         goTo(currentPage - 1);
       }
       // Chapter navigation with brackets or shift+arrows
-      if ((e.key === "]" || (e.shiftKey && e.key === "ArrowRight")) && nextChapterUrl) {
+      if ((e.key === ']' || (e.shiftKey && e.key === 'ArrowRight')) && nextChapterUrl) {
         window.location.href = nextChapterUrl;
       }
-      if ((e.key === "[" || (e.shiftKey && e.key === "ArrowLeft")) && prevChapterUrl) {
+      if ((e.key === '[' || (e.shiftKey && e.key === 'ArrowLeft')) && prevChapterUrl) {
         window.location.href = prevChapterUrl;
       }
     };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
   }, [currentPage, goTo, readingMode, nextChapterUrl, prevChapterUrl]);
 
   // Preload next pages (paged mode only)
   useEffect(() => {
-    if (!pages || readingMode !== "paged") return;
+    if (!pages || readingMode !== 'paged') return;
     for (let i = 1; i <= 3; i++) {
       const idx = currentPage + i;
       if (idx < totalPages) {
@@ -268,10 +281,10 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
-          <p className="text-sm text-muted-foreground">Loading chapter...</p>
+          <div className="border-muted border-t-primary h-8 w-8 animate-spin rounded-full border-4" />
+          <p className="text-muted-foreground text-sm">Loading chapter...</p>
         </div>
       </div>
     );
@@ -282,8 +295,10 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
       <div className="flex flex-col items-center gap-4 py-12">
         <p className="text-muted-foreground">No pages found for this chapter.</p>
         {mangaId && (
-          <Link href={`/manga/${mangaId}`}>
-            <Button variant="outline" size="sm">Return to manga page</Button>
+          <Link href={buildMangaUrl(mangaId, mangaTitle)}>
+            <Button variant="outline" size="sm">
+              Return to manga page
+            </Button>
           </Link>
         )}
       </div>
@@ -298,7 +313,7 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1 sm:gap-2">
           {mangaId && (
-            <Link href={`/manga/${mangaId}`}>
+            <Link href={buildMangaUrl(mangaId, mangaTitle)}>
               <Button variant="ghost" size="sm" className="px-2 sm:px-3">
                 <ChevronLeft className="h-4 w-4" />
                 <span className="hidden sm:inline">Back</span>
@@ -309,7 +324,12 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
           {/* Chapter Navigation */}
           {prevChapterUrl && (
             <Link href={prevChapterUrl}>
-              <Button variant="outline" size="sm" className="px-2 sm:px-3" title="Previous chapter ([)">
+              <Button
+                variant="outline"
+                size="sm"
+                className="px-2 sm:px-3"
+                title="Previous chapter ([)"
+              >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
             </Link>
@@ -328,15 +348,13 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
           {chapterNav?.chapterNumber && (
             <span className="font-medium">Ch. {chapterNav.chapterNumber}</span>
           )}
-          {readingMode === "paged" && (
+          {readingMode === 'paged' && (
             <span className="text-muted-foreground">
               · {currentPage + 1}/{totalPages}
             </span>
           )}
-          {readingMode === "longstrip" && (
-            <span className="text-muted-foreground">
-              · {totalPages} pg
-            </span>
+          {readingMode === 'longstrip' && (
+            <span className="text-muted-foreground">· {totalPages} pg</span>
           )}
         </div>
 
@@ -345,7 +363,7 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
           <Button
             variant="ghost"
             size="sm"
-            className="px-2 hidden sm:flex"
+            className="hidden px-2 sm:flex"
             onClick={() => setShowKeyboardHelp(true)}
             title="Keyboard shortcuts (?)"
           >
@@ -355,19 +373,19 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
             variant="outline"
             size="sm"
             className="px-2 sm:px-3"
-            onClick={() => setReadingMode((m) => (m === "paged" ? "longstrip" : "paged"))}
-            title={readingMode === "paged" ? "Switch to scroll mode" : "Switch to page mode"}
+            onClick={() => setReadingMode((m) => (m === 'paged' ? 'longstrip' : 'paged'))}
+            title={readingMode === 'paged' ? 'Switch to scroll mode' : 'Switch to page mode'}
           >
-            {readingMode === "paged" ? "Scroll" : "Paged"}
+            {readingMode === 'paged' ? 'Scroll' : 'Paged'}
           </Button>
           {isMangaDex && (
             <Button
               variant="outline"
               size="sm"
               className="px-2 sm:px-3"
-              onClick={() => setQuality((q) => (q === "data" ? "data-saver" : "data"))}
+              onClick={() => setQuality((q) => (q === 'data' ? 'data-saver' : 'data'))}
             >
-              {quality === "data" ? "HQ" : "Lite"}
+              {quality === 'data' ? 'HQ' : 'Lite'}
             </Button>
           )}
         </div>
@@ -376,9 +394,15 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
   );
 
   const keyboardHelpModal = showKeyboardHelp && (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowKeyboardHelp(false)}>
-      <div className="bg-popover rounded-lg shadow-xl p-6 max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={() => setShowKeyboardHelp(false)}
+    >
+      <div
+        className="bg-popover mx-4 max-w-sm rounded-lg p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
           <Keyboard className="h-5 w-5" />
           Keyboard Shortcuts
         </h3>
@@ -391,7 +415,7 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
             <span className="text-muted-foreground">Previous page</span>
             <span className="font-mono">← or A</span>
           </div>
-          <div className="border-t pt-3 flex justify-between">
+          <div className="flex justify-between border-t pt-3">
             <span className="text-muted-foreground">Next chapter</span>
             <span className="font-mono">] or Shift+→</span>
           </div>
@@ -399,13 +423,13 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
             <span className="text-muted-foreground">Previous chapter</span>
             <span className="font-mono">[ or Shift+←</span>
           </div>
-          <div className="border-t pt-3 flex justify-between">
+          <div className="flex justify-between border-t pt-3">
             <span className="text-muted-foreground">Toggle this help</span>
             <span className="font-mono">? or H</span>
           </div>
         </div>
         <Button
-          className="w-full mt-6"
+          className="mt-6 w-full"
           variant="outline"
           onClick={() => setShowKeyboardHelp(false)}
         >
@@ -415,7 +439,7 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
     </div>
   );
 
-  if (readingMode === "longstrip") {
+  if (readingMode === 'longstrip') {
     return (
       <div className="space-y-4">
         {toolbar}
@@ -429,15 +453,15 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
               alt={`Page ${i + 1}`}
               width={800}
               height={2000}
-              className="w-full max-w-[800px] h-auto"
+              className="h-auto w-full max-w-[800px]"
               unoptimized
-              loading={i < 3 ? "eager" : "lazy"}
+              loading={i < 3 ? 'eager' : 'lazy'}
             />
           ))}
         </div>
 
         {/* End of Chapter Navigation */}
-        <div className="flex flex-col items-center gap-4 py-8 border-t px-4">
+        <div className="flex flex-col items-center gap-4 border-t px-4 py-8">
           <p className="text-muted-foreground">End of chapter</p>
           <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
             {prevChapterUrl && (
@@ -450,8 +474,10 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
               </Link>
             )}
             {mangaId && (
-              <Link href={`/manga/${mangaId}`}>
-                <Button variant="outline" size="sm" className="sm:size-default">Back to manga</Button>
+              <Link href={buildMangaUrl(mangaId, mangaTitle)}>
+                <Button variant="outline" size="sm" className="sm:size-default">
+                  Back to manga
+                </Button>
               </Link>
             )}
             {nextChapterUrl && (
@@ -479,7 +505,7 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
       {keyboardHelpModal}
 
       <div
-        className="relative flex items-center justify-center cursor-pointer select-none min-h-[50vh]"
+        className="relative flex min-h-[50vh] cursor-pointer items-center justify-center select-none"
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           const clickX = e.clientX - rect.left;
@@ -496,7 +522,7 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
           alt={`Page ${currentPage + 1}`}
           width={800}
           height={1200}
-          className="max-h-[85vh] w-auto object-contain mx-auto"
+          className="mx-auto max-h-[85vh] w-auto object-contain"
           priority
           unoptimized
         />
@@ -515,7 +541,7 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
         <select
           value={currentPage}
           onChange={(e) => goTo(Number(e.target.value))}
-          className="h-9 rounded-md border bg-background px-2 text-sm"
+          className="bg-background h-9 rounded-md border px-2 text-sm"
         >
           {Array.from({ length: totalPages }).map((_, i) => (
             <option key={i} value={i}>
@@ -534,13 +560,13 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
         </Button>
       </div>
 
-      <p className="text-center text-xs text-muted-foreground">
+      <p className="text-muted-foreground text-center text-xs">
         Use ← → arrow keys or click left/right side of the image to navigate · Press ? for shortcuts
       </p>
 
       {/* End of Chapter Navigation */}
       {isLastPage && (
-        <div className="flex flex-col items-center gap-4 py-8 border-t px-4">
+        <div className="flex flex-col items-center gap-4 border-t px-4 py-8">
           <p className="text-lg font-medium">Chapter Complete!</p>
           <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
             {prevChapterUrl && (
@@ -553,8 +579,10 @@ function ReaderContent({ chapterId, source, sourceId }: { chapterId: string; sou
               </Link>
             )}
             {mangaId && (
-              <Link href={`/manga/${mangaId}`}>
-                <Button variant="outline" size="sm" className="sm:size-default">Back to manga</Button>
+              <Link href={buildMangaUrl(mangaId, mangaTitle)}>
+                <Button variant="outline" size="sm" className="sm:size-default">
+                  Back to manga
+                </Button>
               </Link>
             )}
             {nextChapterUrl && (
@@ -580,8 +608,8 @@ export default function ReaderPage({ params }: { params: Promise<{ chapterId: st
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="border-muted border-t-primary h-8 w-8 animate-spin rounded-full border-4" />
         </div>
       }
     >

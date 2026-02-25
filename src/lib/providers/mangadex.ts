@@ -1,11 +1,11 @@
-import type { ContentProvider, ProviderSearchResult } from "./types";
-import type { Chapter, ChapterPagesResponse } from "@/types/manga";
-import { searchManga, getMangaChapters, getChapterPages } from "@/lib/mangadex";
+import type { ContentProvider, ProviderSearchResult } from './types';
+import type { Chapter, ChapterPagesResponse } from '@/types/manga';
+import { searchManga, getMangaChapters, getChapterPages } from '@/lib/mangadex';
 
 export class MangaDexProvider implements ContentProvider {
-  name = "mangadex";
-  displayName = "MangaDex";
-  type = "manga" as const;
+  name = 'mangadex';
+  displayName = 'MangaDex';
+  type = 'manga' as const;
   needsImageProxy = false;
 
   async search(query: string): Promise<ProviderSearchResult[]> {
@@ -28,7 +28,7 @@ export class MangaDexProvider implements ContentProvider {
 
     // Fetch all chapters by paginating
     while (true) {
-      const page = await getMangaChapters(sourceId, { limit, offset, order: "desc" });
+      const page = await getMangaChapters(sourceId, { limit, offset, order: 'desc' });
       chapters.push(...page.data);
       if (chapters.length >= page.total || page.data.length < limit) break;
       offset += limit;
@@ -40,7 +40,7 @@ export class MangaDexProvider implements ContentProvider {
   async getChapterPages(chapterId: string): Promise<ChapterPagesResponse> {
     const pages = await getChapterPages(chapterId);
     return {
-      source: "mangadex" as const,
+      source: 'mangadex' as const,
       baseUrl: pages.baseUrl,
       hash: pages.hash,
       data: pages.data,

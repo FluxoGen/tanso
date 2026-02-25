@@ -1,32 +1,29 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getProvider } from "@/lib/providers";
-import { chapterCache } from "@/lib/cache";
-import type { Chapter } from "@/types/manga";
+import { NextRequest, NextResponse } from 'next/server';
+import { getProvider } from '@/lib/providers';
+import { chapterCache } from '@/lib/cache';
+import type { Chapter } from '@/types/manga';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const searchParams = request.nextUrl.searchParams;
-    const source = searchParams.get("source") ?? "mangadex";
-    const sourceId = searchParams.get("sourceId") ?? id;
-    const currentChapterId = searchParams.get("chapterId");
+    const source = searchParams.get('source') ?? 'mangadex';
+    const sourceId = searchParams.get('sourceId') ?? id;
+    const currentChapterId = searchParams.get('chapterId');
 
     const provider = getProvider(source);
     if (!provider) {
       return NextResponse.json({ error: `Unknown provider: ${source}` }, { status: 400 });
     }
 
-    if (source === "mangadex") {
+    if (source === 'mangadex') {
       // MangaDex uses server-side pagination
-      const page = parseInt(searchParams.get("page") ?? "1", 10);
-      const lang = searchParams.get("lang") ?? "en";
+      const page = parseInt(searchParams.get('page') ?? '1', 10);
+      const lang = searchParams.get('lang') ?? 'en';
       const limit = 30;
       const offset = (page - 1) * limit;
 
-      const { getMangaChapters } = await import("@/lib/mangadex");
+      const { getMangaChapters } = await import('@/lib/mangadex');
       const result = await getMangaChapters(id, { limit, offset, translatedLanguage: lang });
 
       // If chapterId is provided, find navigation info
@@ -52,7 +49,7 @@ export async function GET(
     const nav = currentChapterId ? findNavInList(chapters, currentChapterId) : null;
     return NextResponse.json({ data: chapters, total: chapters.length, nav });
   } catch {
-    return NextResponse.json({ error: "Failed to fetch chapters" }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch chapters' }, { status: 500 });
   }
 }
 
@@ -61,10 +58,10 @@ function findNavInList(chapters: Chapter[], currentChapterId: string) {
   if (idx === -1) return null;
 
   const current = chapters[idx];
-  
+
   // Detect if chapters are in descending order (newest first) by comparing first and last
-  const firstNum = parseFloat(chapters[0]?.chapter ?? "0");
-  const lastNum = parseFloat(chapters[chapters.length - 1]?.chapter ?? "0");
+  const firstNum = parseFloat(chapters[0]?.chapter ?? '0');
+  const lastNum = parseFloat(chapters[chapters.length - 1]?.chapter ?? '0');
   const isDescending = firstNum > lastNum;
 
   // For descending lists: prev in array = next chapter, next in array = prev chapter
@@ -80,14 +77,14 @@ function findNavInList(chapters: Chapter[], currentChapterId: string) {
 }
 
 async function getChapterNavigation(mangaId: string, chapterId: string, lang: string) {
-  const { getMangaChapters } = await import("@/lib/mangadex");
-  
+  const { getMangaChapters } = await import('@/lib/mangadex');
+
   // Fetch all chapters in ascending order to find prev/next
   const result = await getMangaChapters(mangaId, {
     limit: 500,
     offset: 0,
     translatedLanguage: lang,
-    order: "asc",
+    order: 'asc',
   });
 
   return findNavInList(result.data, chapterId);

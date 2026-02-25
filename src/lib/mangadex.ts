@@ -1,5 +1,5 @@
-import type { Manga, MangaTag, Chapter, PaginatedResponse } from "@/types/manga";
-import { fetchWithRetry } from "./fetch-utils";
+import type { Manga, MangaTag, Chapter, PaginatedResponse } from '@/types/manga';
+import { fetchWithRetry } from './fetch-utils';
 
 interface MangaDexChapterPages {
   baseUrl: string;
@@ -8,7 +8,7 @@ interface MangaDexChapterPages {
   dataSaver: string[];
 }
 
-const BASE_URL = "https://api.mangadex.org";
+const BASE_URL = 'https://api.mangadex.org';
 
 // --- Raw MangaDex types (internal) ---
 
@@ -42,67 +42,78 @@ interface MdChapterAttributes {
   publishAt: string;
 }
 
-const ALL_CONTENT_RATINGS = ["safe", "suggestive", "erotica", "pornographic"];
+const ALL_CONTENT_RATINGS = ['safe', 'suggestive', 'erotica', 'pornographic'];
 
 export function appendContentRatings(params: URLSearchParams, ratings?: string[]): void {
   const toInclude = ratings?.length ? ratings : ALL_CONTENT_RATINGS;
   for (const rating of toInclude) {
-    params.append("contentRating[]", rating);
+    params.append('contentRating[]', rating);
   }
 }
 
 // --- Helpers ---
 
-function pickTitle(titles: Record<string, string>, altTitles?: Record<string, string>[]): { title: string; altTitle?: string } {
-  const en = titles["en"];
-  const jaRo = titles["ja-ro"] || titles["ja"];
+function pickTitle(
+  titles: Record<string, string>,
+  altTitles?: Record<string, string>[]
+): { title: string; altTitle?: string } {
+  const en = titles['en'];
+  const jaRo = titles['ja-ro'] || titles['ja'];
   const first = Object.values(titles)[0];
-  const title = en || jaRo || first || "Untitled";
+  const title = en || jaRo || first || 'Untitled';
 
   let altTitle: string | undefined;
   if (en && jaRo && en !== jaRo) {
     altTitle = jaRo;
   } else if (altTitles?.length) {
-    const alt = altTitles.find((a) => a["ja-ro"] || a["ja"] || a["en"]);
+    const alt = altTitles.find((a) => a['ja-ro'] || a['ja'] || a['en']);
     if (alt) altTitle = Object.values(alt)[0];
   }
 
   return { title, altTitle };
 }
 
-function normalizeManga(item: { id: string; attributes: MdMangaAttributes; relationships: MdRelationship[] }): Manga {
+function normalizeManga(item: {
+  id: string;
+  attributes: MdMangaAttributes;
+  relationships: MdRelationship[];
+}): Manga {
   const a = item.attributes;
   const { title, altTitle } = pickTitle(a.title, a.altTitles);
 
-  const coverRel = item.relationships.find((r) => r.type === "cover_art");
-  const authorRel = item.relationships.find((r) => r.type === "author");
-  const artistRel = item.relationships.find((r) => r.type === "artist");
+  const coverRel = item.relationships.find((r) => r.type === 'cover_art');
+  const authorRel = item.relationships.find((r) => r.type === 'author');
+  const artistRel = item.relationships.find((r) => r.type === 'artist');
 
   return {
     id: item.id,
     title,
     altTitle,
-    description: a.description["en"] || Object.values(a.description)[0] || "",
+    description: a.description['en'] || Object.values(a.description)[0] || '',
     status: a.status,
     year: a.year,
     contentRating: a.contentRating,
     tags: a.tags.map((t) => ({
       id: t.id,
-      name: t.attributes.name["en"] || Object.values(t.attributes.name)[0] || "",
+      name: t.attributes.name['en'] || Object.values(t.attributes.name)[0] || '',
       group: t.attributes.group,
     })),
     coverId: coverRel?.id ?? null,
-    coverFileName: (coverRel?.attributes?.["fileName"] as string) ?? null,
-    authorName: (authorRel?.attributes?.["name"] as string) ?? null,
-    artistName: (artistRel?.attributes?.["name"] as string) ?? null,
+    coverFileName: (coverRel?.attributes?.['fileName'] as string) ?? null,
+    authorName: (authorRel?.attributes?.['name'] as string) ?? null,
+    artistName: (artistRel?.attributes?.['name'] as string) ?? null,
     lastChapter: a.lastChapter,
     lastVolume: a.lastVolume,
   };
 }
 
-function normalizeChapter(item: { id: string; attributes: MdChapterAttributes; relationships: MdRelationship[] }): Chapter {
+function normalizeChapter(item: {
+  id: string;
+  attributes: MdChapterAttributes;
+  relationships: MdRelationship[];
+}): Chapter {
   const a = item.attributes;
-  const groupRel = item.relationships.find((r) => r.type === "scanlation_group");
+  const groupRel = item.relationships.find((r) => r.type === 'scanlation_group');
 
   return {
     id: item.id,
@@ -112,8 +123,8 @@ function normalizeChapter(item: { id: string; attributes: MdChapterAttributes; r
     pages: a.pages,
     translatedLanguage: a.translatedLanguage,
     publishAt: a.publishAt,
-    scanlationGroup: (groupRel?.attributes?.["name"] as string) ?? null,
-    source: "mangadex",
+    scanlationGroup: (groupRel?.attributes?.['name'] as string) ?? null,
+    source: 'mangadex',
   };
 }
 
@@ -121,33 +132,38 @@ function normalizeChapter(item: { id: string; attributes: MdChapterAttributes; r
 
 export async function searchManga(
   query: string,
-  options: { limit?: number; offset?: number; includedTags?: string[]; contentRatings?: string[] } = {}
+  options: {
+    limit?: number;
+    offset?: number;
+    includedTags?: string[];
+    contentRatings?: string[];
+  } = {}
 ): Promise<PaginatedResponse<Manga>> {
   const params = new URLSearchParams({
     limit: String(options.limit ?? 20),
     offset: String(options.offset ?? 0),
-    "includes[]": "cover_art",
+    'includes[]': 'cover_art',
   });
 
   // Only include title param if query is not empty
   if (query.trim()) {
-    params.set("title", query);
-    params.set("order[relevance]", "desc");
+    params.set('title', query);
+    params.set('order[relevance]', 'desc');
   } else {
     // Genre-only search: use followedCount for better results
-    params.set("order[followedCount]", "desc");
+    params.set('order[followedCount]', 'desc');
   }
 
   appendContentRatings(params, options.contentRatings);
 
   if (options.includedTags?.length) {
     for (const tag of options.includedTags) {
-      params.append("includedTags[]", tag);
+      params.append('includedTags[]', tag);
     }
   }
 
-  params.append("includes[]", "author");
-  params.append("includes[]", "artist");
+  params.append('includes[]', 'author');
+  params.append('includes[]', 'artist');
 
   const res = await fetchWithRetry(`${BASE_URL}/manga?${params}`);
   const json = await res.json();
@@ -162,9 +178,9 @@ export async function searchManga(
 
 export async function getMangaDetails(id: string): Promise<Manga> {
   const params = new URLSearchParams();
-  params.append("includes[]", "cover_art");
-  params.append("includes[]", "author");
-  params.append("includes[]", "artist");
+  params.append('includes[]', 'cover_art');
+  params.append('includes[]', 'author');
+  params.append('includes[]', 'artist');
   appendContentRatings(params);
 
   const res = await fetchWithRetry(`${BASE_URL}/manga/${id}?${params}`);
@@ -174,14 +190,19 @@ export async function getMangaDetails(id: string): Promise<Manga> {
 
 export async function getMangaChapters(
   id: string,
-  options: { limit?: number; offset?: number; translatedLanguage?: string; order?: "asc" | "desc" } = {}
+  options: {
+    limit?: number;
+    offset?: number;
+    translatedLanguage?: string;
+    order?: 'asc' | 'desc';
+  } = {}
 ): Promise<PaginatedResponse<Chapter>> {
   const params = new URLSearchParams({
     limit: String(options.limit ?? 30),
     offset: String(options.offset ?? 0),
-    "translatedLanguage[]": options.translatedLanguage ?? "en",
-    "order[chapter]": options.order ?? "desc",
-    "includes[]": "scanlation_group",
+    'translatedLanguage[]': options.translatedLanguage ?? 'en',
+    'order[chapter]': options.order ?? 'desc',
+    'includes[]': 'scanlation_group',
   });
   appendContentRatings(params);
 
@@ -219,7 +240,7 @@ export async function getMangaTags(): Promise<MangaTag[]> {
   cachedTags = json.data.map(
     (t: { id: string; attributes: { name: Record<string, string>; group: string } }) => ({
       id: t.id,
-      name: t.attributes.name["en"] || Object.values(t.attributes.name)[0] || "",
+      name: t.attributes.name['en'] || Object.values(t.attributes.name)[0] || '',
       group: t.attributes.group,
     })
   );
@@ -227,18 +248,22 @@ export async function getMangaTags(): Promise<MangaTag[]> {
   return cachedTags!;
 }
 
-export async function getPopularManga(limit = 20, includedTags?: string[], contentRatings?: string[]): Promise<Manga[]> {
+export async function getPopularManga(
+  limit = 20,
+  includedTags?: string[],
+  contentRatings?: string[]
+): Promise<Manga[]> {
   const params = new URLSearchParams({
     limit: String(limit),
-    offset: "0",
-    "includes[]": "cover_art",
-    "order[followedCount]": "desc",
+    offset: '0',
+    'includes[]': 'cover_art',
+    'order[followedCount]': 'desc',
   });
   appendContentRatings(params, contentRatings);
-  params.append("includes[]", "author");
-  params.append("includes[]", "artist");
+  params.append('includes[]', 'author');
+  params.append('includes[]', 'artist');
   if (includedTags?.length) {
-    for (const tag of includedTags) params.append("includedTags[]", tag);
+    for (const tag of includedTags) params.append('includedTags[]', tag);
   }
   const res = await fetchWithRetry(`${BASE_URL}/manga?${params}`);
   const json = await res.json();
@@ -254,14 +279,14 @@ export async function getLatestManga(
   const params = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
-    "includes[]": "cover_art",
-    "order[latestUploadedChapter]": "desc",
+    'includes[]': 'cover_art',
+    'order[latestUploadedChapter]': 'desc',
   });
   appendContentRatings(params, contentRatings);
-  params.append("includes[]", "author");
-  params.append("includes[]", "artist");
+  params.append('includes[]', 'author');
+  params.append('includes[]', 'artist');
   if (includedTags?.length) {
-    for (const tag of includedTags) params.append("includedTags[]", tag);
+    for (const tag of includedTags) params.append('includedTags[]', tag);
   }
   const res = await fetchWithRetry(`${BASE_URL}/manga?${params}`);
   const json = await res.json();
@@ -273,26 +298,33 @@ export async function getLatestManga(
   };
 }
 
-export async function getTrendingManga(limit = 20, includedTags?: string[], contentRatings?: string[]): Promise<Manga[]> {
+export async function getTrendingManga(
+  limit = 20,
+  includedTags?: string[],
+  contentRatings?: string[]
+): Promise<Manga[]> {
   const params = new URLSearchParams({
     limit: String(limit),
-    offset: "0",
-    "includes[]": "cover_art",
-    "order[rating]": "desc",
+    offset: '0',
+    'includes[]': 'cover_art',
+    'order[rating]': 'desc',
   });
   appendContentRatings(params, contentRatings);
-  params.append("includes[]", "author");
-  params.append("includes[]", "artist");
+  params.append('includes[]', 'author');
+  params.append('includes[]', 'artist');
   if (includedTags?.length) {
-    for (const tag of includedTags) params.append("includedTags[]", tag);
+    for (const tag of includedTags) params.append('includedTags[]', tag);
   }
   const res = await fetchWithRetry(`${BASE_URL}/manga?${params}`);
   const json = await res.json();
   return json.data.map(normalizeManga);
 }
 
-export function getCoverUrl(mangaId: string, coverFileName: string, size: "256" | "512" | "original" = "256"): string {
-  const suffix = size === "original" ? "" : `.${size}.jpg`;
+export function getCoverUrl(
+  mangaId: string,
+  coverFileName: string,
+  size: '256' | '512' | 'original' = '256'
+): string {
+  const suffix = size === 'original' ? '' : `.${size}.jpg`;
   return `https://uploads.mangadex.org/covers/${mangaId}/${coverFileName}${suffix}`;
 }
-

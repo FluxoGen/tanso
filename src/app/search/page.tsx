@@ -1,25 +1,25 @@
-"use client";
+'use client';
 
-import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, Suspense, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { TagFilter } from "@/components/tag-filter";
-import { MangaCard, MangaCardSkeleton } from "@/components/manga-card";
-import { ScrollToTop } from "@/components/scroll-to-top";
-import { Loader2, List, Infinity } from "lucide-react";
-import type { Manga } from "@/types/manga";
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback, Suspense, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { TagFilter } from '@/components/tag-filter';
+import { MangaCard, MangaCardSkeleton } from '@/components/manga-card';
+import { ScrollToTop } from '@/components/scroll-to-top';
+import { Loader2, List, Infinity } from 'lucide-react';
+import type { Manga } from '@/types/manga';
 
 const ITEMS_PER_PAGE = 20;
-type ViewMode = "infinite" | "paginated";
+type ViewMode = 'infinite' | 'paginated';
 
 function SearchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const q = searchParams.get("q") ?? "";
-  const pageParam = parseInt(searchParams.get("page") ?? "1", 10);
-  const tagParams = searchParams.getAll("tag");
-  const ratingParams = searchParams.getAll("rating");
+  const q = searchParams.get('q') ?? '';
+  const pageParam = parseInt(searchParams.get('page') ?? '1', 10);
+  const tagParams = searchParams.getAll('tags');
+  const ratingParams = searchParams.getAll('ratings');
 
   const [selectedTags, setSelectedTags] = useState<string[]>(tagParams);
   const [selectedRatings, setSelectedRatings] = useState<string[]>(ratingParams);
@@ -27,7 +27,7 @@ function SearchContent() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(pageParam);
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("paginated");
+  const [viewMode, setViewMode] = useState<ViewMode>('paginated');
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -38,28 +38,28 @@ function SearchContent() {
   const updateUrl = useCallback(
     (newQ: string, newTags: string[], newRatings: string[], newPage: number) => {
       const params = new URLSearchParams();
-      if (newQ) params.set("q", newQ);
-      if (newPage > 1) params.set("page", String(newPage));
-      for (const t of newTags) params.append("tag", t);
-      for (const r of newRatings) params.append("rating", r);
+      if (newQ) params.set('q', newQ);
+      if (newPage > 1) params.set('page', String(newPage));
+      for (const t of newTags) params.append('tags', t);
+      for (const r of newRatings) params.append('ratings', r);
       router.push(`/search?${params.toString()}`);
     },
     [router]
   );
 
   // Memoize tag/rating strings to avoid recreating on each render
-  const tagKey = tagParams.join(",");
-  const ratingKey = ratingParams.join(",");
+  const tagKey = tagParams.join(',');
+  const ratingKey = ratingParams.join(',');
 
   useEffect(() => {
     if (!q && tagParams.length === 0) return;
 
     setLoading(true);
     const params = new URLSearchParams();
-    if (q) params.set("q", q);
-    params.set("page", String(pageParam));
-    for (const t of tagParams) params.append("genres", t);
-    for (const r of ratingParams) params.append("ratings", r);
+    if (q) params.set('q', q);
+    params.set('page', String(pageParam));
+    for (const t of tagParams) params.append('tags', t);
+    for (const r of ratingParams) params.append('ratings', r);
 
     fetch(`/api/search?${params}`)
       .then((r) => r.json())
@@ -89,10 +89,10 @@ function SearchContent() {
     const nextPage = infinitePageRef.current + 1;
 
     const params = new URLSearchParams();
-    if (q) params.set("q", q);
-    params.set("page", String(nextPage));
-    for (const t of tagParams) params.append("genres", t);
-    for (const r of ratingParams) params.append("ratings", r);
+    if (q) params.set('q', q);
+    params.set('page', String(nextPage));
+    for (const t of tagParams) params.append('tags', t);
+    for (const r of ratingParams) params.append('ratings', r);
 
     try {
       const res = await fetch(`/api/search?${params}`);
@@ -117,7 +117,7 @@ function SearchContent() {
 
   // Infinite scroll observer
   useEffect(() => {
-    if (viewMode !== "infinite" || loading || isLoadingMore || !hasMore) {
+    if (viewMode !== 'infinite' || loading || isLoadingMore || !hasMore) {
       if (observerRef.current) {
         observerRef.current.disconnect();
       }
@@ -147,7 +147,7 @@ function SearchContent() {
   const handleViewModeChange = (mode: ViewMode) => {
     if (mode === viewMode) return;
     setViewMode(mode);
-    if (mode === "paginated") {
+    if (mode === 'paginated') {
       setPage(1);
       // Reset to first page - this will trigger the useEffect
       updateUrl(q, tagParams, ratingParams, 1);
@@ -177,10 +177,10 @@ function SearchContent() {
     <div className="space-y-6">
       <div className="space-y-4">
         <h1 className="text-2xl font-bold tracking-tight">
-          {q ? `Results for "${q}"` : "Search Manga"}
+          {q ? `Results for "${q}"` : 'Search Manga'}
         </h1>
 
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <TagFilter
             selectedTags={selectedTags}
             selectedRatings={selectedRatings}
@@ -190,15 +190,14 @@ function SearchContent() {
           />
 
           {/* View mode toggle */}
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-sm text-muted-foreground">View:</span>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="text-muted-foreground text-sm">View:</span>
             <div className="flex rounded-md border">
               <button
-                onClick={() => handleViewModeChange("infinite")}
-                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 rounded-l-md transition-colors ${
-                  viewMode === "infinite"
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-accent"
+                onClick={() => handleViewModeChange('infinite')}
+                aria-label={`Switch to infinite scroll view${viewMode === 'infinite' ? ', currently active' : ''}`}
+                className={`flex items-center gap-1.5 rounded-l-md px-3 py-1.5 text-sm transition-colors ${
+                  viewMode === 'infinite' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
                 }`}
                 title="Infinite scroll"
               >
@@ -206,11 +205,12 @@ function SearchContent() {
                 <span className="hidden sm:inline">Scroll</span>
               </button>
               <button
-                onClick={() => handleViewModeChange("paginated")}
-                className={`px-3 py-1.5 text-sm flex items-center gap-1.5 rounded-r-md border-l transition-colors ${
-                  viewMode === "paginated"
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-accent"
+                onClick={() => handleViewModeChange('paginated')}
+                aria-label={`Switch to paginated view${viewMode === 'paginated' ? ', currently active' : ''}`}
+                className={`flex items-center gap-1.5 rounded-r-md border-l px-3 py-1.5 text-sm transition-colors ${
+                  viewMode === 'paginated'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-accent'
                 }`}
                 title="Page navigation"
               >
@@ -225,45 +225,45 @@ function SearchContent() {
       {q || tagParams.length > 0 ? (
         <>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {total > 0 ? `${total} result${total === 1 ? "" : "s"} found` : "No results"}
+            <p className="text-muted-foreground text-sm">
+              {total > 0 ? `${total} result${total === 1 ? '' : 's'} found` : 'No results'}
             </p>
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {Array.from({ length: 20 }).map((_, i) => (
                 <MangaCardSkeleton key={i} />
               ))}
             </div>
           ) : manga.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="py-12 text-center">
               <p className="text-muted-foreground">No manga found</p>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                 {manga.map((m) => (
                   <MangaCard key={m.id} manga={m} />
                 ))}
               </div>
 
               {/* Infinite scroll loader */}
-              {viewMode === "infinite" && (
+              {viewMode === 'infinite' && (
                 <div ref={loadMoreRef} className="flex justify-center py-8">
                   {isLoadingMore ? (
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
                   ) : hasMore ? (
-                    <span className="text-sm text-muted-foreground">Scroll for more</span>
+                    <span className="text-muted-foreground text-sm">Scroll for more</span>
                   ) : (
-                    <span className="text-sm text-muted-foreground">No more results</span>
+                    <span className="text-muted-foreground text-sm">No more results</span>
                   )}
                 </div>
               )}
 
               {/* Pagination controls */}
-              {viewMode === "paginated" && totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 pt-4 flex-wrap">
+              {viewMode === 'paginated' && totalPages > 1 && (
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
                   <Button
                     variant="outline"
                     size="sm"
@@ -273,15 +273,16 @@ function SearchContent() {
                     Previous
                   </Button>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Page</span>
+                    <span className="text-muted-foreground text-sm">Page</span>
                     <input
                       type="number"
                       min={1}
                       max={totalPages}
+                      aria-label="Go to page number"
                       defaultValue={page}
                       key={page}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") {
+                        if (e.key === 'Enter') {
                           const val = parseInt((e.target as HTMLInputElement).value, 10);
                           if (!isNaN(val) && val >= 1 && val <= totalPages) {
                             handlePageChange(val);
@@ -294,9 +295,9 @@ function SearchContent() {
                           handlePageChange(val);
                         }
                       }}
-                      className="w-16 h-8 rounded-md border bg-background px-2 text-center text-sm"
+                      className="bg-background h-8 w-16 rounded-md border px-2 text-center text-sm"
                     />
-                    <span className="text-sm text-muted-foreground">of {totalPages}</span>
+                    <span className="text-muted-foreground text-sm">of {totalPages}</span>
                   </div>
                   <Button
                     variant="outline"
@@ -312,7 +313,7 @@ function SearchContent() {
           )}
         </>
       ) : (
-        <p className="text-center text-muted-foreground py-12">
+        <p className="text-muted-foreground py-12 text-center">
           Use the search bar above to find manga, or select a genre to browse.
         </p>
       )}
@@ -324,13 +325,15 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        {Array.from({ length: 20 }).map((_, i) => (
-          <MangaCardSkeleton key={i} />
-        ))}
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {Array.from({ length: 20 }).map((_, i) => (
+            <MangaCardSkeleton key={i} />
+          ))}
+        </div>
+      }
+    >
       <SearchContent />
     </Suspense>
   );

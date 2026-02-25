@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from 'react';
 import {
   LibraryEntry,
   LibraryStatus,
@@ -11,7 +11,7 @@ import {
   addToLibrary,
   updateLibraryStatus,
   removeFromLibrary,
-} from "@/lib/storage";
+} from '@/lib/storage';
 
 // Hook for checking and managing a single manga's library status
 export function useLibraryStatus(mangaId: string | null) {
@@ -28,7 +28,7 @@ export function useLibraryStatus(mangaId: string | null) {
   }, [mangaId]);
 
   const add = useCallback(
-    (title: string, coverUrl: string | null, status: LibraryStatus = "plan_to_read") => {
+    (title: string, coverUrl: string | null, status: LibraryStatus = 'plan_to_read') => {
       if (!mangaId) return;
       addToLibrary(mangaId, title, coverUrl, status);
       setEntry(getLibraryEntry(mangaId));
@@ -58,7 +58,7 @@ export function useLibraryStatus(mangaId: string | null) {
         removeFromLibrary(mangaId);
         setEntry(null);
       } else {
-        addToLibrary(mangaId, title, coverUrl, "plan_to_read");
+        addToLibrary(mangaId, title, coverUrl, 'plan_to_read');
         setEntry(getLibraryEntry(mangaId));
       }
     },
@@ -122,18 +122,18 @@ export function useLibrary(filterStatus?: LibraryStatus) {
 
 // Status labels for UI
 export const LIBRARY_STATUS_LABELS: Record<LibraryStatus, string> = {
-  reading: "Reading",
-  plan_to_read: "Plan to Read",
-  completed: "Completed",
-  on_hold: "On Hold",
-  dropped: "Dropped",
+  reading: 'Reading',
+  plan_to_read: 'Plan to Read',
+  completed: 'Completed',
+  on_hold: 'On Hold',
+  dropped: 'Dropped',
 };
 
 // Status colors for badges
 export const LIBRARY_STATUS_COLORS: Record<LibraryStatus, string> = {
-  reading: "bg-blue-500/20 text-blue-600 dark:text-blue-400",
-  plan_to_read: "bg-purple-500/20 text-purple-600 dark:text-purple-400",
-  completed: "bg-green-500/20 text-green-600 dark:text-green-400",
-  on_hold: "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400",
-  dropped: "bg-red-500/20 text-red-600 dark:text-red-400",
+  reading: 'bg-blue-500/20 text-blue-600 dark:text-blue-400',
+  plan_to_read: 'bg-purple-500/20 text-purple-600 dark:text-purple-400',
+  completed: 'bg-green-500/20 text-green-600 dark:text-green-400',
+  on_hold: 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400',
+  dropped: 'bg-red-500/20 text-red-600 dark:text-red-400',
 };

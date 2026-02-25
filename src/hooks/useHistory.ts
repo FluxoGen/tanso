@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from 'react';
 import {
   HistoryEntry,
   getHistory,
   addToHistory,
   removeFromHistory,
   clearHistory,
-} from "@/lib/storage";
+} from '@/lib/storage';
 
 export function useHistory() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -23,7 +23,7 @@ export function useHistory() {
   }, [refresh]);
 
   const add = useCallback(
-    (entry: Omit<HistoryEntry, "lastReadAt">) => {
+    (entry: Omit<HistoryEntry, 'lastReadAt'>) => {
       addToHistory(entry);
       refresh();
     },
@@ -66,21 +66,21 @@ export function formatRelativeTime(timestamp: number): string {
   const months = Math.floor(days / 30);
 
   if (months > 0) {
-    return months === 1 ? "1 month ago" : `${months} months ago`;
+    return months === 1 ? '1 month ago' : `${months} months ago`;
   }
   if (weeks > 0) {
-    return weeks === 1 ? "1 week ago" : `${weeks} weeks ago`;
+    return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`;
   }
   if (days > 0) {
-    return days === 1 ? "Yesterday" : `${days} days ago`;
+    return days === 1 ? 'Yesterday' : `${days} days ago`;
   }
   if (hours > 0) {
-    return hours === 1 ? "1 hour ago" : `${hours} hours ago`;
+    return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
   }
   if (minutes > 0) {
-    return minutes === 1 ? "1 minute ago" : `${minutes} minutes ago`;
+    return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
   }
-  return "Just now";
+  return 'Just now';
 }
 
 // Group history by date for timeline display
@@ -95,15 +95,15 @@ export function groupHistoryByDate(history: HistoryEntry[]): Map<string, History
 
     let key: string;
     if (date.toDateString() === today.toDateString()) {
-      key = "Today";
+      key = 'Today';
     } else if (date.toDateString() === yesterday.toDateString()) {
-      key = "Yesterday";
+      key = 'Yesterday';
     } else if (date > new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)) {
-      key = "This Week";
+      key = 'This Week';
     } else if (date > new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)) {
-      key = "This Month";
+      key = 'This Month';
     } else {
-      key = date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      key = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     }
 
     if (!groups.has(key)) {

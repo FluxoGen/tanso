@@ -1,15 +1,15 @@
-import type { ProviderSearchResult } from "@/lib/providers/types";
+import type { ProviderSearchResult } from '@/lib/providers/types';
 
-const EDITION_KEYWORDS = ["(colored)", "(full color)", "(digital)", "(official)"];
+const EDITION_KEYWORDS = ['(colored)', '(full color)', '(digital)', '(official)'];
 
 function normalizeRomanization(s: string): string {
   return s
-    .replace(/\bwo\b/g, "o")        // particle を
-    .replace(/ou/g, "o")             // long vowel おう → お
-    .replace(/uu/g, "u")             // long vowel うう → う
-    .replace(/[''`]/g, "")           // apostrophes
-    .replace(/[–—]/g, "-")           // dashes
-    .replace(/\s+/g, " ");
+    .replace(/\bwo\b/g, 'o') // particle を
+    .replace(/ou/g, 'o') // long vowel おう → お
+    .replace(/uu/g, 'u') // long vowel うう → う
+    .replace(/[''`]/g, '') // apostrophes
+    .replace(/[–—]/g, '-') // dashes
+    .replace(/\s+/g, ' ');
 }
 
 function levenshteinSimilarity(a: string, b: string): number {
@@ -18,7 +18,7 @@ function levenshteinSimilarity(a: string, b: string): number {
   if (la === 0 || lb === 0) return 0;
 
   const matrix: number[][] = Array.from({ length: la + 1 }, (_, i) =>
-    Array.from({ length: lb + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
+    Array.from({ length: lb + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
   );
 
   for (let i = 1; i <= la; i++) {
@@ -27,7 +27,7 @@ function levenshteinSimilarity(a: string, b: string): number {
       matrix[i][j] = Math.min(
         matrix[i - 1][j] + 1,
         matrix[i][j - 1] + 1,
-        matrix[i - 1][j - 1] + cost,
+        matrix[i - 1][j - 1] + cost
       );
     }
   }
@@ -53,7 +53,7 @@ function titleScore(qLower: string, rLower: string): number {
 export function scoreMatch(
   query: string,
   result: ProviderSearchResult,
-  reference: { lastChapter?: string | null; status?: string },
+  reference: { lastChapter?: string | null; status?: string }
 ): number {
   let score = 0;
   const qRaw = query.toLowerCase().trim();

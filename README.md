@@ -27,13 +27,13 @@ A full-stack application for discovering and exploring manga, anime, and more. B
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 16 (App Router) + TypeScript |
-| Styling | Tailwind CSS v4 + shadcn/ui |
-| Primary API | MangaDex REST API |
-| Metadata API | AniList GraphQL API |
-| Package Manager | pnpm |
+| Layer           | Technology                           |
+| --------------- | ------------------------------------ |
+| Framework       | Next.js 16 (App Router) + TypeScript |
+| Styling         | Tailwind CSS v4 + shadcn/ui          |
+| Primary API     | MangaDex REST API                    |
+| Metadata API    | AniList GraphQL API                  |
+| Package Manager | pnpm                                 |
 
 ## Quick Start
 
@@ -50,11 +50,11 @@ For the full list of commands (build, lint, adding components, etc.), see [docs/
 
 Detailed documentation lives in the [`docs/`](docs/) folder:
 
-| Document | Description |
-|---|---|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System diagrams (mermaid), data flows, component hierarchy, API route map, and design rationale |
-| [COMMANDS.md](docs/COMMANDS.md) | All commands for setup, development, building, linting, and dependency management |
-| [PLAN.md](docs/PLAN.md) | Living project plan — current status, completed milestones, upcoming features, and design decisions |
+| Document                                  | Description                                                                                                            |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md)   | System diagrams (mermaid), data flows, component hierarchy, API route map, and design rationale                        |
+| [COMMANDS.md](docs/COMMANDS.md)           | All commands for setup, development, building, linting, and dependency management                                      |
+| [PLAN.md](docs/PLAN.md)                   | Living project plan — current status, completed milestones, upcoming features, and design decisions                    |
 | [PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md) | End-to-end explanation of how every layer works, from API clients to React components, with 4 full-flow trace examples |
 
 ## Credits

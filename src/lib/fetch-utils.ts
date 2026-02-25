@@ -9,7 +9,7 @@ export interface RetryConfig {
   retryOn?: (response: Response) => boolean;
 }
 
-const DEFAULT_CONFIG: Required<Omit<RetryConfig, "retryOn">> = {
+const DEFAULT_CONFIG: Required<Omit<RetryConfig, 'retryOn'>> = {
   retries: 3,
   delay: 1000,
   backoff: 2,
@@ -17,7 +17,7 @@ const DEFAULT_CONFIG: Required<Omit<RetryConfig, "retryOn">> = {
 
 /**
  * Fetch with automatic retry on failure.
- * 
+ *
  * - Retries on network errors and 5xx responses
  * - Handles rate limiting (429) with longer wait
  * - Uses exponential backoff between retries
@@ -43,9 +43,9 @@ export async function fetchWithRetry(
 
       // Rate limited - wait longer and retry
       if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After");
+        const retryAfter = response.headers.get('Retry-After');
         const waitTime = retryAfter ? parseInt(retryAfter, 10) * 1000 : 5000;
-        
+
         if (attempt < retries) {
           await sleep(waitTime);
           continue;
@@ -77,7 +77,7 @@ export async function fetchWithRetry(
     } catch (error) {
       // Network errors - retry
       lastError = error instanceof Error ? error : new Error(String(error));
-      
+
       if (attempt < retries) {
         await sleep(delay * Math.pow(backoff, attempt));
         continue;
@@ -85,7 +85,7 @@ export async function fetchWithRetry(
     }
   }
 
-  throw lastError ?? new Error("Max retries exceeded");
+  throw lastError ?? new Error('Max retries exceeded');
 }
 
 function sleep(ms: number): Promise<void> {
@@ -101,10 +101,10 @@ export async function fetchJsonWithRetry<T>(
   config?: RetryConfig
 ): Promise<T> {
   const response = await fetchWithRetry(url, options, config);
-  
+
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
-  
+
   return response.json();
 }

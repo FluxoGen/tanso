@@ -1,4 +1,4 @@
-import type { Chapter, ChapterPagesResponse } from "@/types/manga";
+import type { Chapter, ChapterPagesResponse } from '@/types/manga';
 
 export interface ProviderSearchResult {
   sourceId: string;
@@ -11,7 +11,7 @@ export interface ProviderSearchResult {
 export interface ContentProvider {
   name: string;
   displayName: string;
-  type: "manga" | "anime" | "lightnovel";
+  type: 'manga' | 'anime' | 'lightnovel';
   search(query: string): Promise<ProviderSearchResult[]>;
   getChapters(sourceId: string): Promise<Chapter[]>;
   getChapterPages(chapterId: string): Promise<ChapterPagesResponse>;

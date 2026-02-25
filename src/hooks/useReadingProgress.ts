@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ReadingProgress,
   getProgress,
@@ -8,7 +8,7 @@ import {
   saveProgress,
   clearProgress,
   markChapterAsRead,
-} from "@/lib/storage";
+} from '@/lib/storage';
 
 interface UseReadingProgressOptions {
   debounceMs?: number;
@@ -36,7 +36,7 @@ export function useReadingProgress(
 
   // Save progress with debouncing
   const updateProgress = useCallback(
-    (newProgress: Omit<ReadingProgress, "timestamp">) => {
+    (newProgress: Omit<ReadingProgress, 'timestamp'>) => {
       if (!mangaId) return;
 
       pendingProgressRef.current = newProgress;

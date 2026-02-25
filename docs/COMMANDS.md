@@ -21,10 +21,10 @@ All commands needed to set up, develop, build, and maintain the Tanso project.
 
 Before starting, ensure you have the following installed:
 
-| Tool | Minimum Version | Check Command |
-|---|---|---|
-| Node.js | 18.17+ | `node --version` |
-| pnpm | 10.x | `pnpm --version` |
+| Tool    | Minimum Version | Check Command    |
+| ------- | --------------- | ---------------- |
+| Node.js | 18.17+          | `node --version` |
+| pnpm    | 10.x            | `pnpm --version` |
 
 **Install pnpm** (if not already installed):
 
@@ -69,6 +69,7 @@ pnpm dev
 This starts the app at `http://localhost:3000` (or the next available port if 3000 is in use). The terminal will display the exact URL.
 
 The dev server provides:
+
 - Hot Module Replacement (HMR) — changes to source files are reflected instantly in the browser.
 - Turbopack — significantly faster compilation than webpack.
 - API routes are available at `http://localhost:3000/api/*`.
@@ -84,6 +85,7 @@ pnpm build
 ```
 
 This command:
+
 - Compiles all TypeScript files and checks for type errors.
 - Bundles and optimizes all client-side JavaScript.
 - Pre-renders static pages.
@@ -142,14 +144,14 @@ pnpm dlx shadcn@latest add card --yes
 
 **Currently installed shadcn/ui components:**
 
-| Component | File | Purpose |
-|---|---|---|
-| Button | `src/components/ui/button.tsx` | Buttons with variants (default, outline, ghost, etc.) |
-| Badge | `src/components/ui/badge.tsx` | Small status/tag indicators |
-| Input | `src/components/ui/input.tsx` | Text input fields |
-| Skeleton | `src/components/ui/skeleton.tsx` | Loading placeholder shapes |
-| Scroll Area | `src/components/ui/scroll-area.tsx` | Custom scrollable containers |
-| Separator | `src/components/ui/separator.tsx` | Horizontal/vertical dividers |
+| Component   | File                                | Purpose                                               |
+| ----------- | ----------------------------------- | ----------------------------------------------------- |
+| Button      | `src/components/ui/button.tsx`      | Buttons with variants (default, outline, ghost, etc.) |
+| Badge       | `src/components/ui/badge.tsx`       | Small status/tag indicators                           |
+| Input       | `src/components/ui/input.tsx`       | Text input fields                                     |
+| Skeleton    | `src/components/ui/skeleton.tsx`    | Loading placeholder shapes                            |
+| Scroll Area | `src/components/ui/scroll-area.tsx` | Custom scrollable containers                          |
+| Separator   | `src/components/ui/separator.tsx`   | Horizontal/vertical dividers                          |
 
 ---
 
@@ -189,13 +191,13 @@ pnpm outdated
 
 ## Quick Reference
 
-| Task | Command |
-|---|---|
-| Install dependencies | `pnpm install` |
-| Start dev server | `pnpm dev` |
-| Build for production | `pnpm build` |
-| Start production server | `pnpm start` |
-| Lint code | `pnpm lint` |
-| Add shadcn component | `pnpm dlx shadcn@latest add <name>` |
-| Add package | `pnpm add <name>` |
-| Add dev package | `pnpm add -D <name>` |
+| Task                    | Command                             |
+| ----------------------- | ----------------------------------- |
+| Install dependencies    | `pnpm install`                      |
+| Start dev server        | `pnpm dev`                          |
+| Build for production    | `pnpm build`                        |
+| Start production server | `pnpm start`                        |
+| Lint code               | `pnpm lint`                         |
+| Add shadcn component    | `pnpm dlx shadcn@latest add <name>` |
+| Add package             | `pnpm add <name>`                   |
+| Add dev package         | `pnpm add -D <name>`                |

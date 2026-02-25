@@ -1,0 +1,15 @@
+name: On PR Merge
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  on-merge:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Merge notification
+        run: echo "PR #${{ github.event.pull_request.number }} merged to main"

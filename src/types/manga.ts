@@ -44,7 +44,7 @@ export interface MangaSource {
 
 export type ChapterPagesResponse =
   | {
-      source: "mangadex";
+      source: 'mangadex';
       baseUrl: string;
       hash: string;
       data: string[];
