@@ -18,8 +18,16 @@ export function Navbar() {
 	return (
 		<header className="bg-background/80 sticky top-0 z-50 w-full border-b backdrop-blur-sm">
 			<div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
-				<Link href="/" className="flex shrink-0 items-center gap-2 text-lg font-bold text-foreground">
-					<svg viewBox="0 0 100 100" fill="none" className="h-8 w-8 shrink-0" style={{ color: 'var(--foreground)' }}>
+				<Link
+					href="/"
+					className="text-foreground flex shrink-0 items-center gap-2 text-lg font-bold"
+				>
+					<svg
+						viewBox="0 0 100 100"
+						fill="none"
+						className="h-8 w-8 shrink-0"
+						style={{ color: 'var(--foreground)' }}
+					>
 						<circle cx="50" cy="50" r="48" stroke="currentColor" strokeWidth="2" />
 						<rect x="20" y="58" width="60" height="3" fill="#E63946" />
 						<rect x="46" y="25" width="8" height="45" fill="currentColor" />
