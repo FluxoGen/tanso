@@ -52,18 +52,18 @@ query ($search: String) {
 `;
 
 export async function searchAniListManga(title: string): Promise<AniListMedia | null> {
-  try {
-    const res = await fetchWithRetry(ANILIST_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: MANGA_QUERY, variables: { search: title } }),
-    });
+	try {
+		const res = await fetchWithRetry(ANILIST_URL, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ query: MANGA_QUERY, variables: { search: title } }),
+		});
 
-    if (!res.ok) return null;
+		if (!res.ok) return null;
 
-    const json: AniListResponse = await res.json();
-    return json.data.Media;
-  } catch {
-    return null;
-  }
+		const json: AniListResponse = await res.json();
+		return json.data.Media;
+	} catch {
+		return null;
+	}
 }

@@ -5,18 +5,18 @@ import { getCoverUrl } from '@/lib/mangadex';
  * Returns null if coverUrl is null/empty.
  */
 export function resolveCoverUrl(
-  mangaId: string,
-  coverUrl: string | null,
-  size: '256' | '512' = '256'
+	mangaId: string,
+	coverUrl: string | null,
+	size: '256' | '512' = '256'
 ): string | null {
-  if (!coverUrl) return null;
-  // Already a full URL (e.g. from MangaDex CDN)
-  if (coverUrl.startsWith('http') || coverUrl.includes('mangadex.org')) {
-    return coverUrl;
-  }
-  // Filename (e.g. "abc123.jpg" from MangaDex)
-  if (coverUrl.includes('.')) {
-    return getCoverUrl(mangaId, coverUrl, size);
-  }
-  return null;
+	if (!coverUrl) return null;
+	// Already a full URL (e.g. from MangaDex CDN)
+	if (coverUrl.startsWith('http') || coverUrl.includes('mangadex.org')) {
+		return coverUrl;
+	}
+	// Filename (e.g. "abc123.jpg" from MangaDex)
+	if (coverUrl.includes('.')) {
+		return getCoverUrl(mangaId, coverUrl, size);
+	}
+	return null;
 }

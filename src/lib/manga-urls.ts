@@ -5,6 +5,6 @@ import { slugify } from './slugify';
  * Uses slug for SEO: /manga/[id]/[slug]
  */
 export function buildMangaUrl(mangaId: string, title: string): string {
-  const slug = slugify(title);
-  return `/manga/${mangaId}/${slug}`;
+	const slug = slugify(title);
+	return `/manga/${mangaId}/${slug}`;
 }

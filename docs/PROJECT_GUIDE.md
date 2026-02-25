@@ -270,10 +270,10 @@ Every route follows the same try/catch pattern:
 
 ```typescript
 try {
-  // ... call API client
-  return NextResponse.json(result);
+	// ... call API client
+	return NextResponse.json(result);
 } catch {
-  return NextResponse.json({ error: '...' }, { status: 500 });
+	return NextResponse.json({ error: '...' }, { status: 500 });
 }
 ```
 
@@ -921,17 +921,17 @@ The `globals.css` defines CSS variables for both themes:
 
 ```css
 :root {
-  --background: oklch(1 0 0); /* white */
-  --foreground: oklch(0.145 0 0); /* near-black */
-  --card: oklch(1 0 0); /* white */
-  /* ... */
+	--background: oklch(1 0 0); /* white */
+	--foreground: oklch(0.145 0 0); /* near-black */
+	--card: oklch(1 0 0); /* white */
+	/* ... */
 }
 
 .dark {
-  --background: oklch(0.145 0 0); /* near-black */
-  --foreground: oklch(0.985 0 0); /* near-white */
-  --card: oklch(0.205 0 0); /* dark gray */
-  /* ... */
+	--background: oklch(0.145 0 0); /* near-black */
+	--foreground: oklch(0.985 0 0); /* near-white */
+	--card: oklch(0.205 0 0); /* dark gray */
+	/* ... */
 }
 ```
 
