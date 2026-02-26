@@ -14,4 +14,4 @@ jobs:
       - name: Merge notification
         env:
           PR_NUM: ${{ github.event.pull_request.number }}
-        run: echo "PR #${PR_NUM} merged to main"
+        run: 'echo "PR #${PR_NUM} merged to main"'
