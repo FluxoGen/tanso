@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import Image from 'next/image';
 import packageJson from '../../package.json';
 
@@ -10,12 +9,7 @@ export function Footer() {
 					<p>© 2026 Tanso. All rights reserved.</p>
 					<span className="text-muted-foreground/60">v{packageJson.version}</span>
 				</div>
-				<Link
-					href="https://github.com/FluxoGen"
-					target="_blank"
-					rel="noopener noreferrer"
-					className="text-foreground hover:text-primary flex items-center gap-2 font-medium transition-colors"
-				>
+				<div className="flex items-center gap-2">
 					<span className="text-muted-foreground">Developed by</span>
 					<Image
 						src="/images/fluxogen-logo.jpeg"
@@ -24,8 +18,8 @@ export function Footer() {
 						height={24}
 						className="rounded"
 					/>
-					<span>FluxoGen</span>
-				</Link>
+					<span className="font-medium">FluxoGen</span>
+				</div>
 			</div>
 		</footer>
 	);
