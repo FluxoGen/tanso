@@ -5,7 +5,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { getCoverUrl } from '@/lib/mangadex';
+import { getCoverUrl } from '@/providers/mangadex';
 import { buildMangaUrl } from '@/lib/manga-urls';
 import { Loader2, X } from 'lucide-react';
 

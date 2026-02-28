@@ -1,4 +1,4 @@
-import type { ProviderSearchResult } from '@/lib/providers/types';
+import type { LegacyProviderSearchResult as ProviderSearchResult } from '@/providers/compat';
 
 const EDITION_KEYWORDS = ['(colored)', '(full color)', '(digital)', '(official)'];
 

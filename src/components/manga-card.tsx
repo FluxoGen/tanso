@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { getCoverUrl } from '@/lib/mangadex';
+import { getCoverUrl } from '@/providers/mangadex';
 import { buildMangaUrl } from '@/lib/manga-urls';
 import type { Manga } from '@/types/manga';
 

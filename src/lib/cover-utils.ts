@@ -1,4 +1,4 @@
-import { getCoverUrl } from '@/lib/mangadex';
+import { getCoverUrl } from '@/providers/mangadex';
 
 /**
  * Resolves a cover URL from mangaId and coverUrl (filename or full URL).

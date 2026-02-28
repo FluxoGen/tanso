@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getChapterPages } from '@/lib/mangadex';
+import { getChapterPages } from '@/providers/mangadex';
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {

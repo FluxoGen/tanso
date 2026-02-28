@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTrendingManga } from '@/lib/mangadex';
+import { getTrendingManga } from '@/providers/mangadex';
 
 export async function GET(request: NextRequest) {
 	try {

@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChapterList } from '@/components/chapter-list';
 import { LibraryButton } from '@/components/library-button';
-import { getCoverUrl } from '@/lib/mangadex';
+import { getCoverUrl } from '@/providers/mangadex';
 import type { Manga, MangaTag } from '@/types/manga';
 import type { AniListMedia } from '@/types/anilist';
 

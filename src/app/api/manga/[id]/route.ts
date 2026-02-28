@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getMangaDetails } from '@/lib/mangadex';
-import { searchAniListManga } from '@/lib/anilist';
+import { getMangaDetails } from '@/providers/mangadex';
+import { searchAniListManga } from '@/providers/anilist';
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {

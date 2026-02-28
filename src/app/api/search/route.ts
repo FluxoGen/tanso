@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchManga } from '@/lib/mangadex';
-import { searchAniListManga } from '@/lib/anilist';
+import { searchManga } from '@/providers/mangadex';
+import { searchAniListManga } from '@/providers/anilist';
 import type { Manga, PaginatedResponse } from '@/types/manga';
 
 function mergeResults(

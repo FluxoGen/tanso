@@ -192,6 +192,26 @@ pnpm outdated
 
 ---
 
+## 9. Provider Testing
+
+Test the manga provider system:
+
+```bash
+# Test MangaFire provider
+npx tsx scripts/test-mangafire-provider.ts
+```
+
+This tests:
+- Health check connectivity
+- Browse/filter functionality
+- Chapter list retrieval
+- Search (may require VRF)
+- Chapter pages (may require VRF)
+
+For more details on the provider system, see [PROVIDERS.md](./PROVIDERS.md).
+
+---
+
 ## Quick Reference
 
 | Task                    | Command                             |
@@ -201,6 +221,7 @@ pnpm outdated
 | Build for production    | `pnpm build`                        |
 | Start production server | `pnpm start`                        |
 | Lint code               | `pnpm lint`                         |
+| Test MangaFire provider | `npx tsx scripts/test-mangafire-provider.ts` |
 | Add shadcn component    | `pnpm dlx shadcn@latest add <name>` |
 | Add package             | `pnpm add <name>`                   |
 | Add dev package         | `pnpm add -D <name>`                |

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { listProviders } from '@/lib/providers';
+import { getAllProviders, getDisplayName } from '@/providers';
 import { sourceCache } from '@/lib/cache';
 import { scoreMatch } from '@/lib/matching';
-import { getMangaChapters } from '@/lib/mangadex';
+import { getMangaChapters } from '@/providers/mangadex';
 import type { MangaSource } from '@/types/manga';
+import { wrapAsLegacyProvider } from '@/providers/compat';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
 	try {
@@ -24,12 +25,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 		const sources: MangaSource[] = [];
 
-		// MangaDex source (always present)
+		// MangaDex source (always present) - using mythical display name
 		try {
 			const mdChapters = await getMangaChapters(id, { limit: 1 });
 			sources.push({
 				provider: 'mangadex',
-				displayName: 'MangaDex',
+				displayName: getDisplayName('mangadex'),
 				sourceId: id,
 				matchedTitle: title,
 				chapterCount: mdChapters.total,
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 		} catch {
 			sources.push({
 				provider: 'mangadex',
-				displayName: 'MangaDex',
+				displayName: getDisplayName('mangadex'),
 				sourceId: id,
 				matchedTitle: title,
 				chapterCount: 0,
@@ -51,7 +52,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 		const altTitles = altTitlesRaw ? altTitlesRaw.split('||').filter(Boolean) : [];
 		const searchQueries = [title, ...altTitles.filter((t) => t !== title)];
 
-		const otherProviders = listProviders('manga').filter((p) => p.name !== 'mangadex');
+		const allProviders = getAllProviders();
+		const otherProviders = allProviders
+			.filter((p) => p.info.id !== 'mangadex')
+			.map((p) => wrapAsLegacyProvider(p));
+
 		const providerPromises = otherProviders.map(async (provider) => {
 			try {
 				let bestResults: {
@@ -78,7 +83,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 				return bestResults.map((s) => ({
 					provider: provider.name,
-					displayName: provider.displayName,
+					displayName: getDisplayName(provider.name),
 					sourceId: s.result.sourceId,
 					matchedTitle: s.result.title,
 					chapterCount: s.result.chapterCount ?? 0,
