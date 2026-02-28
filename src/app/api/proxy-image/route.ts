@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const ALLOWED_DOMAINS = new Set(['cdn.readdetectiveconan.com']);
+const ALLOWED_DOMAINS = new Set(['cdn.readdetectiveconan.com', 'uploads.mangadex.org']);
+
+// Allow any *.mangadex.network subdomain
+function isAllowedDomain(hostname: string): boolean {
+	if (ALLOWED_DOMAINS.has(hostname)) return true;
+	if (hostname.endsWith('.mangadex.network')) return true;
+	return false;
+}
 
 const PROVIDER_REFERERS: Record<string, string> = {
 	mangapill: 'https://mangapill.com/',
+	mangadex: 'https://mangadex.org/',
 };
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -50,7 +58,7 @@ export async function GET(request: NextRequest) {
 			return NextResponse.json({ error: 'Only HTTPS URLs allowed' }, { status: 400 });
 		}
 
-		if (!ALLOWED_DOMAINS.has(parsed.hostname)) {
+		if (!isAllowedDomain(parsed.hostname)) {
 			return NextResponse.json({ error: 'Domain not allowed' }, { status: 403 });
 		}
 

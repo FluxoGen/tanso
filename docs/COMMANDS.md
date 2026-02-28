@@ -6,14 +6,17 @@ All commands needed to set up, develop, build, and maintain the Tanso project.
 
 ## Table of Contents
 
-1. [Prerequisites](#1-prerequisites)
-2. [Initial Setup](#2-initial-setup)
-3. [Development](#3-development)
-4. [Building for Production](#4-building-for-production)
-5. [Running Production Build](#5-running-production-build)
-6. [Linting](#6-linting)
-7. [Adding shadcn/ui Components](#7-adding-shadcnui-components)
-8. [Dependency Management](#8-dependency-management)
+- [Commands](#commands)
+  - [Table of Contents](#table-of-contents)
+  - [1. Prerequisites](#1-prerequisites)
+  - [2. Initial Setup](#2-initial-setup)
+  - [3. Development](#3-development)
+  - [4. Building for Production](#4-building-for-production)
+  - [5. Running Production Build](#5-running-production-build)
+  - [6. Linting](#6-linting)
+  - [7. Adding shadcn/ui Components](#7-adding-shadcnui-components)
+  - [8. Dependency Management](#8-dependency-management)
+  - [Quick Reference](#quick-reference)
 
 ---
 
