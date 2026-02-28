@@ -110,7 +110,9 @@ function ReaderContent({
 			if (!pages) return '';
 			if ('hash' in pages) {
 				const fileList = quality === 'data' ? pages.data : pages.dataSaver;
-				return `${pages.baseUrl}/${quality}/${pages.hash}/${fileList[idx]}`;
+				const imageUrl = `${pages.baseUrl}/${quality}/${pages.hash}/${fileList[idx]}`;
+				// Proxy MangaDex images to add proper referrer headers
+				return `/api/proxy-image?url=${encodeURIComponent(imageUrl)}&source=mangadex`;
 			}
 			const directUrl = pages.pages[idx]?.img ?? '';
 			if (!directUrl) return '';
