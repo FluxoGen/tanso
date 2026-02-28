@@ -72,7 +72,7 @@ export function wrapAsLegacyProvider(provider: MangaProvider): LegacyContentProv
 				pages: ch.pages ?? 0,
 				translatedLanguage: ch.language,
 				publishAt: ch.uploadDate ?? '',
-				scanlationGroup: ch.scanlator ?? null,
+				scanlationGroup: ch.scanlator ? getDisplayName(provider.info.id) : null,
 				source: provider.info.id,
 			}));
 		},
