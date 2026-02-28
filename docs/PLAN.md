@@ -279,6 +279,20 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - **Mobile end-of-chapter navigation** — Buttons wrap properly on narrow screens with smaller sizes and shorter text.
 - **External reader sourceId** — Properly passes sourceId through URL chain for correct chapter navigation on external sources.
 
+### Milestone 22: Provider System Consolidation
+
+- **Unified `MangaProvider` interface** — Replaced legacy `ContentProvider` with a standardized interface in `src/providers/types.ts` supporting search, browse, chapters, pages, and health checks.
+- **Provider Registry** — New registry in `src/providers/index.ts` with `getAllProviders()`, `getProvider()`, `getDisplayName()` functions.
+- **Source Aliases (Mythical Theme)** — Display names to protect source identities: Phoenix (MangaDex), Griffin (MangaPill).
+- **Multi-Source Discovery APIs** — Updated `/api/search`, `/api/suggest`, `/api/manga/trending`, `/api/manga/popular`, `/api/manga/latest` to query all providers via aggregator.
+- **Intelligent Deduplication** — Enhanced `deduplicateManga()` with:
+  - Romanization normalization (`wo`→`o`, `ou`→`o`, `uu`→`u`)
+  - Fuzzy matching using Levenshtein similarity (0.85 threshold)
+  - Source tracking to show which providers have each manga
+- **Compatibility Layer** — `compat.ts` bridges new `MangaProvider` to legacy `ContentProvider` interface for gradual migration.
+- **UI Source Indicators** — `MangaCard` component updated to optionally show source badge and multi-source count.
+- **MangaFire Removal** — Removed MangaFire (Dragon) provider due to insurmountable VRF + Cloudflare Turnstile + CDP detection layers. Browse, search, and chapter pages all required browser automation that couldn't bypass the stacked protections.
+
 ---
 
 ## 4. Upcoming / Future Work

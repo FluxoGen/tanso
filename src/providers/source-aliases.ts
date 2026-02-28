@@ -20,11 +20,6 @@ export const SOURCE_ALIASES: Record<string, SourceAlias> = {
 		description: 'Community-driven, official API',
 		icon: '🔥',
 	},
-	mangafire: {
-		display: 'Dragon',
-		description: 'Fast aggregator with broad coverage',
-		icon: '🐉',
-	},
 	mangapill: {
 		display: 'Griffin',
 		description: 'Alternative source via Consumet',

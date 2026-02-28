@@ -2,7 +2,7 @@
  * Provider System Types
  *
  * This module defines the interfaces for the multi-source manga aggregator.
- * Each provider (MangaDex, MangaFire, MangaPill, etc.) implements these interfaces,
+ * Each provider (MangaDex, MangaPill, etc.) implements these interfaces,
  * allowing Tanso to fetch data from multiple sources with a unified API.
  *
  * Designed for easy microservice extraction: each provider is self-contained
@@ -116,7 +116,6 @@ export interface ProviderError {
 		| 'RATE_LIMITED'
 		| 'NOT_FOUND'
 		| 'BLOCKED'
-		| 'VRF_REQUIRED'
 		| 'NETWORK_ERROR'
 		| 'PARSE_ERROR'
 		| 'UNKNOWN';
@@ -174,35 +173,3 @@ export interface MangaProvider {
 	healthCheck(): Promise<{ healthy: boolean; latency: number; message?: string }>;
 }
 
-/**
- * Extended provider interface for providers that support headless browser
- * for bypassing protection mechanisms (VRF, Cloudflare, etc.)
- */
-export interface BrowserEnabledProvider extends MangaProvider {
-	/**
-	 * Whether browser automation is available
-	 */
-	hasBrowserSupport(): boolean;
-
-	/**
-	 * Enable/disable browser automation
-	 */
-	setBrowserEnabled(enabled: boolean): void;
-
-	/**
-	 * Get pages using browser automation (slower but more reliable)
-	 */
-	getChapterPagesWithBrowser(chapterId: string): Promise<ChapterPagesResult>;
-
-	/**
-	 * Search using browser automation (for VRF-protected search)
-	 */
-	searchWithBrowser?(options: SearchOptions): Promise<PaginatedResult<MangaSearchResult>>;
-}
-
-/**
- * Type guard to check if a provider supports browser automation
- */
-export function isBrowserEnabledProvider(provider: MangaProvider): provider is BrowserEnabledProvider {
-	return 'hasBrowserSupport' in provider && typeof provider.hasBrowserSupport === 'function';
-}

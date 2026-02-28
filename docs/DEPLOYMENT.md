@@ -15,7 +15,7 @@ pnpm start
 
 ## Environment Variables
 
-Currently no environment variables are required. Add them to `.env.example` and document here when introduced.
+No environment variables are required. The app uses public APIs (MangaDex and AniList) that do not require API keys.
 
 ## Health Check
 

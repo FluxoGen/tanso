@@ -17,6 +17,7 @@ import type {
 } from './types';
 import { searchAniListManga, extractMetadata } from './anilist';
 import { getDisplayName } from './source-aliases';
+import { normalizeRomanization, levenshteinSimilarity } from '@/lib/matching';
 
 interface AggregatorOptions {
 	providers: MangaProvider[];
@@ -187,16 +188,20 @@ export async function getChaptersFromAllSources(
 }
 
 /**
- * Deduplicate manga results by title similarity
+ * Deduplicate manga results by title similarity with fuzzy matching
  */
 function deduplicateManga(results: MangaSearchResult[]): AggregatedSearchResult[] {
 	const seen = new Map<string, AggregatedSearchResult>();
+	const normalizedKeys: string[] = [];
 
 	for (const manga of results) {
-		const key = normalizeTitle(manga.title);
+		const normalized = normalizeTitle(manga.title);
 
-		if (seen.has(key)) {
-			const existing = seen.get(key)!;
+		// Find existing match using fuzzy matching
+		const existingKey = findExistingMatch(normalized, normalizedKeys, seen);
+
+		if (existingKey) {
+			const existing = seen.get(existingKey)!;
 			if (!existing.sources.includes(manga.provider)) {
 				existing.sources.push(manga.provider);
 			}
@@ -207,11 +212,12 @@ function deduplicateManga(results: MangaSearchResult[]): AggregatedSearchResult[
 				existing.description = manga.description;
 			}
 		} else {
-			seen.set(key, {
+			seen.set(normalized, {
 				...manga,
 				sources: [manga.provider],
 				displaySource: getDisplayName(manga.provider),
 			});
+			normalizedKeys.push(normalized);
 		}
 	}
 
@@ -219,14 +225,42 @@ function deduplicateManga(results: MangaSearchResult[]): AggregatedSearchResult[
 }
 
 /**
- * Normalize title for comparison
+ * Find an existing match in the seen map using fuzzy matching
+ */
+function findExistingMatch(
+	normalized: string,
+	normalizedKeys: string[],
+	seen: Map<string, AggregatedSearchResult>
+): string | null {
+	// Exact match first (fast path)
+	if (seen.has(normalized)) {
+		return normalized;
+	}
+
+	// Fuzzy match with threshold
+	const SIMILARITY_THRESHOLD = 0.85;
+
+	for (const key of normalizedKeys) {
+		const similarity = levenshteinSimilarity(normalized, key);
+		if (similarity >= SIMILARITY_THRESHOLD) {
+			return key;
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Normalize title for comparison with romanization normalization
  */
 function normalizeTitle(title: string): string {
-	return title
+	const basic = title
 		.toLowerCase()
 		.replace(/[^\w\s]/g, '')
 		.replace(/\s+/g, ' ')
 		.trim();
+
+	return normalizeRomanization(basic);
 }
 
 /**

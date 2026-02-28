@@ -5,8 +5,16 @@ import { getCoverUrl } from '@/providers/mangadex';
 import { buildMangaUrl } from '@/lib/manga-urls';
 import type { Manga } from '@/types/manga';
 
-export function MangaCard({ manga }: { manga: Manga }) {
-	const coverUrl = manga.coverFileName ? getCoverUrl(manga.id, manga.coverFileName, '256') : null;
+interface MangaCardProps {
+	manga: Manga;
+	displaySource?: string;
+	sources?: string[];
+}
+
+export function MangaCard({ manga, displaySource, sources }: MangaCardProps) {
+	const coverUrl = manga.coverFileName
+		? getCoverUrl(manga.id, manga.coverFileName, '256')
+		: (manga as { coverUrl?: string }).coverUrl ?? null;
 
 	return (
 		<Link
@@ -27,6 +35,14 @@ export function MangaCard({ manga }: { manga: Manga }) {
 						No Cover
 					</div>
 				)}
+				{displaySource && (
+					<Badge
+						variant="outline"
+						className="absolute top-1.5 left-1.5 border-white/30 bg-black/60 text-[10px] font-medium text-white shadow-sm backdrop-blur-sm"
+					>
+						{displaySource}
+					</Badge>
+				)}
 				{manga.contentRating && manga.contentRating !== 'safe' && (
 					<Badge
 						variant="secondary"
@@ -41,6 +57,14 @@ export function MangaCard({ manga }: { manga: Manga }) {
 						{manga.contentRating === 'suggestive' && 'Suggestive'}
 						{manga.contentRating === 'erotica' && 'Erotica'}
 						{manga.contentRating === 'pornographic' && '18+'}
+					</Badge>
+				)}
+				{sources && sources.length > 1 && (
+					<Badge
+						variant="outline"
+						className="absolute bottom-1.5 left-1.5 border-white/30 bg-black/60 text-[9px] text-white/80 backdrop-blur-sm"
+					>
+						+{sources.length - 1} source{sources.length > 2 ? 's' : ''}
 					</Badge>
 				)}
 			</div>

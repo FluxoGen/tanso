@@ -6,8 +6,9 @@
  */
 
 import type { Chapter, ChapterPagesResponse } from '@/types/manga';
-import type { MangaProvider, ChapterPagesResult } from './types';
+import type { MangaProvider, ChapterPagesResult, ProviderError } from './types';
 import { getDisplayName } from './source-aliases';
+import { normalizeRomanization, levenshteinSimilarity } from '@/lib/matching';
 
 /**
  * Old ContentProvider interface (from lib/providers/types.ts)
@@ -43,23 +44,37 @@ export function wrapAsLegacyProvider(provider: MangaProvider): LegacyContentProv
 		imageHeaders:
 			provider.info.id === 'mangapill'
 				? { Referer: 'https://mangapill.com/' }
-				: provider.info.id === 'mangafire'
-					? { Referer: 'https://mangafire.to/' }
-					: undefined,
+				: undefined,
 
 		async search(query: string): Promise<LegacyProviderSearchResult[]> {
+			// Try keyword search first
 			try {
 				const result = await provider.search({ query, limit: 10 });
-				return result.data.map((m) => ({
-					sourceId: m.id,
-					title: m.title,
-					chapterCount: undefined,
-					status: m.status,
-					image: m.coverUrl,
-				}));
+				if (result.data.length > 0) {
+					return result.data.map((m) => ({
+						sourceId: m.id,
+						title: m.title,
+						chapterCount: undefined,
+						status: m.status,
+						image: m.coverUrl,
+					}));
+				}
 			} catch {
-				return [];
+				// Search failed (VRF, Cloudflare block, etc.) — fall through to browse fallback
 			}
+
+			// Fallback: browse popular pages and match by title (cached)
+			if (provider.info.features.includes('browse')) {
+				try {
+					const browsed = await getBrowseFallbackResults(provider);
+					const matches = filterByTitle(query, browsed);
+					if (matches.length > 0) return matches;
+				} catch {
+					// Browse also failed
+				}
+			}
+
+			return [];
 		},
 
 		async getChapters(sourceId: string): Promise<Chapter[]> {
@@ -82,6 +97,69 @@ export function wrapAsLegacyProvider(provider: MangaProvider): LegacyContentProv
 			return convertPagesResult(result, provider.info.id);
 		},
 	};
+}
+
+/**
+ * Cache browse results per provider to avoid re-fetching for every search query
+ */
+const browseCache = new Map<string, { data: { id: string; title: string; coverUrl?: string; status?: string }[]; timestamp: number }>();
+const BROWSE_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+async function getBrowseFallbackResults(provider: MangaProvider): Promise<{ id: string; title: string; coverUrl?: string; status?: string }[]> {
+	const cached = browseCache.get(provider.info.id);
+	if (cached && Date.now() - cached.timestamp < BROWSE_CACHE_TTL) {
+		return cached.data;
+	}
+
+	// Fetch popular + latest + rating sorted to maximize title coverage
+	const browsePromises = [];
+	for (const sort of ['popular', 'latest', 'rating'] as const) {
+		for (let page = 1; page <= 3; page++) {
+			browsePromises.push(
+				provider.browse({ sort, page }).catch(() => null)
+			);
+		}
+	}
+
+	const browseResults = await Promise.all(browsePromises);
+	const allResults = browseResults.flatMap((r) => r?.data ?? []);
+
+	const seen = new Set<string>();
+	const unique = allResults.filter((m) => {
+		if (seen.has(m.id)) return false;
+		seen.add(m.id);
+		return true;
+	});
+
+	browseCache.set(provider.info.id, { data: unique, timestamp: Date.now() });
+	return unique;
+}
+
+/**
+ * Filter browse results by title similarity when keyword search is unavailable
+ */
+function filterByTitle(
+	query: string,
+	data: { id: string; title: string; coverUrl?: string; status?: string }[]
+): LegacyProviderSearchResult[] {
+	const normalized = normalizeRomanization(query.toLowerCase().trim());
+
+	return data
+		.map((m) => {
+			const mNormalized = normalizeRomanization(m.title.toLowerCase().trim());
+			const similarity = levenshteinSimilarity(normalized, mNormalized);
+			const includes = mNormalized.includes(normalized) || normalized.includes(mNormalized);
+			return { m, score: includes ? 1 : similarity };
+		})
+		.filter((r) => r.score >= 0.5)
+		.sort((a, b) => b.score - a.score)
+		.map((r) => ({
+			sourceId: r.m.id,
+			title: r.m.title,
+			chapterCount: undefined,
+			status: r.m.status,
+			image: r.m.coverUrl,
+		}));
 }
 
 /**

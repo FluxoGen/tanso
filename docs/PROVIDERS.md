@@ -9,10 +9,9 @@ src/providers/
 ├── types.ts              # Core interfaces (MangaProvider, etc.)
 ├── index.ts              # Provider registry
 ├── source-aliases.ts     # Display name mapping (mythical theme)
-├── aggregator.ts         # Multi-source queries
+├── aggregator.ts         # Multi-source queries with deduplication
 ├── compat.ts             # Legacy compatibility layer
 ├── mangadex/             # Primary source (Phoenix)
-├── mangafire/            # Aggregator source (Dragon)
 ├── mangapill/            # Consumet-based (Griffin)
 └── anilist/              # Metadata enrichment
 ```
@@ -24,7 +23,6 @@ To protect source identities, we use mythical creature names:
 | Internal ID | Display Name | Description |
 |-------------|--------------|-------------|
 | `mangadex`  | Phoenix      | Community-driven, official API |
-| `mangafire` | Dragon       | Fast aggregator with broad coverage |
 | `mangapill` | Griffin      | Alternative source via Consumet |
 | `comick`    | Sphinx       | High-quality scans (future) |
 | `mangakakalot` | Hydra     | Multi-language support (future) |
@@ -50,6 +48,53 @@ interface MangaProvider {
 }
 ```
 
+## Multi-Source Discovery
+
+The aggregator enables searching across all providers simultaneously:
+
+```typescript
+import { searchAll, browseAll, getAllProviders } from '@/providers';
+
+// Search across all providers with deduplication
+const results = await searchAll(
+  { query: 'one piece' },
+  { 
+    providers: getAllProviders(), 
+    enrichWithAniList: true,
+    timeout: 10000 
+  }
+);
+
+// Browse popular manga from all sources
+const popular = await browseAll(
+  { sort: 'popular' },
+  { providers: getAllProviders() }
+);
+```
+
+### Deduplication
+
+The aggregator uses intelligent deduplication:
+
+1. **Romanization normalization**: Handles variants like "ou" → "o", "wo" → "o"
+2. **Fuzzy matching**: Levenshtein similarity with 0.85 threshold
+3. **Source tracking**: Keeps track of which providers have each manga
+
+## API Routes with Multi-Source
+
+All discovery APIs support multi-source mode via the `multiSource` query parameter:
+
+| Route | Description | Multi-Source |
+|-------|-------------|--------------|
+| `/api/search?q=...` | Search manga | `?multiSource=true` |
+| `/api/suggest?q=...` | Search suggestions | `?multiSource=true` |
+| `/api/manga/trending` | Trending manga | Default enabled |
+| `/api/manga/popular` | Popular manga | Default enabled |
+| `/api/manga/latest` | Latest updates | Default enabled |
+| `/api/manga/[id]` | Manga details | Via `?source=` |
+| `/api/manga/[id]/sources` | Available sources | N/A |
+| `/api/chapter/resolve` | Chapter pages (any provider) | N/A |
+
 ## Adding a New Provider
 
 1. Create a folder: `src/providers/yourprovider/`
@@ -74,7 +119,7 @@ export class YourProvider implements MangaProvider {
     name: 'YourProvider',
     baseUrl: 'https://yourprovider.com',
     languages: ['en'],
-    features: ['search', 'chapters', 'pages'],
+    features: ['search', 'browse', 'chapters', 'pages'],
   };
 
   async search(options: SearchOptions) { ... }
@@ -95,7 +140,6 @@ import { yourprovider } from './yourprovider';
 
 export const providers = {
   mangadex,
-  mangafire,
   mangapill,
   yourprovider,  // Add here
 };
@@ -110,39 +154,6 @@ export const SOURCE_ALIASES = {
 };
 ```
 
-## Aggregator
-
-The aggregator queries multiple providers in parallel:
-
-```typescript
-import { searchAll, browseAll, getAllProviders } from '@/providers';
-
-// Search across all providers
-const results = await searchAll(
-  { query: 'one piece' },
-  { providers: getAllProviders(), enrichWithAniList: true }
-);
-
-// Browse popular manga
-const popular = await browseAll(
-  { sort: 'popular' },
-  { providers: getAllProviders() }
-);
-```
-
-## API Routes
-
-All API routes use the unified provider system:
-
-| Route | Description |
-|-------|-------------|
-| `/api/search` | Search manga (MangaDex + AniList enrichment) |
-| `/api/manga/[id]` | Manga details |
-| `/api/manga/[id]/chapters` | Chapter list (any provider) |
-| `/api/manga/[id]/sources` | Available sources for a manga |
-| `/api/chapter/[id]` | Chapter pages (MangaDex) |
-| `/api/chapter/resolve` | Chapter pages (any provider) |
-
 ## Error Handling
 
 Providers throw `ProviderError` with standardized codes:
@@ -152,39 +163,15 @@ type ProviderErrorCode =
   | 'RATE_LIMITED'    // Too many requests
   | 'NOT_FOUND'       // Resource doesn't exist
   | 'BLOCKED'         // Cloudflare/anti-bot
-  | 'VRF_REQUIRED'    // Needs browser automation
   | 'NETWORK_ERROR'   // Connection failed
   | 'PARSE_ERROR'     // Invalid response
   | 'UNKNOWN';        // Unexpected error
 ```
 
-## Browser Automation (MangaFire)
-
-MangaFire requires VRF tokens for some endpoints. The provider supports a hybrid approach:
-
-- AJAX endpoints (fast): Browse, chapter lists
-- Playwright (slow): Search with keyword, chapter pages
-
-```typescript
-import { mangafire } from '@/providers';
-
-// Check if browser is needed
-if (mangafire.hasBrowserSupport()) {
-  const pages = await mangafire.getChapterPagesWithBrowser(chapterId);
-}
-```
-
-## Testing
-
-Run the provider test:
-
-```bash
-npx tsx scripts/test-mangafire-provider.ts
-```
-
 ## Future Improvements
 
-- [ ] Implement Playwright for MangaFire VRF bypass
+- [x] Multi-source discovery APIs
+- [x] Fuzzy deduplication with romanization normalization
 - [ ] Add more providers (ComicK, MangaKakalot)
 - [ ] Provider health monitoring dashboard
 - [ ] Automatic failover between providers

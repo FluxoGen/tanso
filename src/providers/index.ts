@@ -6,7 +6,6 @@
  *
  * Current providers:
  * - MangaDex (Phoenix): Primary source, official API
- * - MangaFire (Dragon): Hybrid AJAX + Playwright approach
  * - MangaPill (Griffin): Consumet-based provider
  *
  * Metadata enrichment:
@@ -17,7 +16,6 @@ export * from './types';
 export * from './source-aliases';
 
 export { MangaDexProvider, mangadex } from './mangadex';
-export { MangaFireProvider, mangafire } from './mangafire';
 export { MangaPillProvider, mangapill } from './mangapill';
 
 export { searchAniListManga, getAniListMangaById, extractMetadata } from './anilist';
@@ -33,7 +31,6 @@ export {
 
 import type { MangaProvider } from './types';
 import { mangadex } from './mangadex';
-import { mangafire } from './mangafire';
 import { mangapill } from './mangapill';
 
 /**
@@ -41,7 +38,6 @@ import { mangapill } from './mangapill';
  */
 export const providers: Record<string, MangaProvider> = {
 	mangadex,
-	mangafire,
 	mangapill,
 };
 
