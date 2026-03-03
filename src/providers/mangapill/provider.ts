@@ -14,7 +14,6 @@ import type {
 	ChapterInfo,
 	ChapterPagesResult,
 	SearchOptions,
-	BrowseOptions,
 	PaginatedResult,
 	ProviderError,
 } from '../types';
@@ -137,7 +136,7 @@ export class MangaPillProvider implements MangaProvider {
 		}
 	}
 
-	async browse(_options: BrowseOptions): Promise<PaginatedResult<MangaSearchResult>> {
+	async browse(): Promise<PaginatedResult<MangaSearchResult>> {
 		throw this.createError('UNKNOWN', 'MangaPill does not support browsing');
 	}
 

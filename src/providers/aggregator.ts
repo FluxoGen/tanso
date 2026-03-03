@@ -45,7 +45,7 @@ export async function searchAll(
 	const searchPromises = providers.map((provider) =>
 		withTimeout(
 			provider.search(options).catch((err: ProviderError) => {
-				console.warn(`Search failed for ${provider.info.id}:`, err.message);
+				console.error(`Search failed for ${provider.info.id}:`, err.message);
 				return null;
 			}),
 			timeout
@@ -92,7 +92,7 @@ export async function browseAll(
 		.map((provider) =>
 			withTimeout(
 				provider.browse(options).catch((err: ProviderError) => {
-					console.warn(`Browse failed for ${provider.info.id}:`, err.message);
+					console.error(`Browse failed for ${provider.info.id}:`, err.message);
 					return null;
 				}),
 				timeout
@@ -141,7 +141,7 @@ export async function getMangaDetailsWithFallback(
 	try {
 		return await primaryProvider.getMangaDetails(mangaId);
 	} catch (error) {
-		console.warn(`Primary provider failed for ${mangaId}:`, (error as Error).message);
+		console.error(`Primary provider failed for ${mangaId}:`, (error as Error).message);
 
 		for (const provider of fallbackProviders) {
 			try {

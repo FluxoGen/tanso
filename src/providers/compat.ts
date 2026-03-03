@@ -6,7 +6,7 @@
  */
 
 import type { Chapter, ChapterPagesResponse } from '@/types/manga';
-import type { MangaProvider, ChapterPagesResult, ProviderError } from './types';
+import type { MangaProvider, ChapterPagesResult } from './types';
 import { getDisplayName } from './source-aliases';
 import { normalizeRomanization, levenshteinSimilarity } from '@/lib/matching';
 
