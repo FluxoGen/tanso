@@ -18,6 +18,7 @@ import type {
 import { searchAniListManga, extractMetadata } from './anilist';
 import { getDisplayName } from './source-aliases';
 import { normalizeRomanization, levenshteinSimilarity } from '@/lib/matching';
+import { buildProviderId } from '@/lib/provider-id';
 
 interface AggregatorOptions {
 	providers: MangaProvider[];
@@ -101,9 +102,13 @@ export async function browseAll(
 	const results = await Promise.all(browsePromises);
 
 	const allResults: MangaSearchResult[] = [];
+	let maxTotalItems = 0;
 	for (const result of results) {
 		if (result?.data) {
 			allResults.push(...result.data);
+			if (result.totalItems && result.totalItems > maxTotalItems) {
+				maxTotalItems = result.totalItems;
+			}
 		}
 	}
 
@@ -114,11 +119,13 @@ export async function browseAll(
 		enriched = await enrichWithAniListMetadata(deduplicated.slice(0, 20));
 	}
 
+	const validResults = results.filter(Boolean);
+
 	return {
 		data: enriched,
 		page: options.page ?? 1,
-		totalPages: Math.max(...results.filter(Boolean).map((r) => r!.totalPages)),
-		totalItems: deduplicated.length,
+		totalPages: validResults.length > 0 ? Math.max(...validResults.map((r) => r!.totalPages)) : 1,
+		totalItems: maxTotalItems || deduplicated.length,
 		hasNextPage: results.some((r) => r?.hasNextPage),
 	};
 }
@@ -196,8 +203,6 @@ function deduplicateManga(results: MangaSearchResult[]): AggregatedSearchResult[
 
 	for (const manga of results) {
 		const normalized = normalizeTitle(manga.title);
-
-		// Find existing match using fuzzy matching
 		const existingKey = findExistingMatch(normalized, normalizedKeys, seen);
 
 		if (existingKey) {
@@ -212,8 +217,10 @@ function deduplicateManga(results: MangaSearchResult[]): AggregatedSearchResult[
 				existing.description = manga.description;
 			}
 		} else {
+			const compositeId = buildProviderId(manga.provider, manga.id);
 			seen.set(normalized, {
 				...manga,
+				id: compositeId,
 				sources: [manga.provider],
 				displaySource: getDisplayName(manga.provider),
 			});

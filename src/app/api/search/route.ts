@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { searchManga } from '@/providers/mangadex';
 import { searchAniListManga } from '@/providers/anilist';
 import { searchAll, getAllProviders } from '@/providers';
+import { toMangaShape } from '@/lib/aggregator-utils';
 import type { Manga, PaginatedResponse } from '@/types/manga';
 
 function mergeResults(
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
 			);
 
 			return NextResponse.json({
-				data: result.data.slice(0, limit),
+				data: result.data.slice(0, limit).map(toMangaShape),
 				total: result.totalItems ?? result.data.length,
 				offset,
 				limit,

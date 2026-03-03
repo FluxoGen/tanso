@@ -214,6 +214,37 @@ sequenceDiagram
     FE->>U: Display results with source badges
 ```
 
+### Provider-Aware Detail Flow
+
+This diagram shows how composite IDs are parsed and used to dispatch to the correct provider when viewing manga details.
+
+```mermaid
+sequenceDiagram
+    participant U as User Browser
+    participant FE as Detail Page
+    participant API as /api/manga/[id]
+    participant PID as parseProviderId()
+    participant MD as MangaDex API
+    participant MP as MangaPill
+    participant AL as AniList GraphQL
+
+    U->>FE: Navigates to /manga/mangapill:slug-123/title
+    FE->>API: GET /api/manga/mangapill:slug-123
+
+    API->>PID: parseProviderId("mangapill:slug-123")
+    PID-->>API: { provider: "mangapill", sourceId: "slug-123" }
+
+    API->>MP: getMangaDetails("slug-123")
+    MP-->>API: Manga details (title, cover, status, etc.)
+    API->>API: Normalize to Manga type
+    API->>AL: searchAniListManga(title)
+    AL-->>API: AniList metadata
+
+    API-->>FE: { manga: Manga, anilist }
+    FE->>FE: resolveMangaCover(manga)
+    FE->>U: Detail page rendered
+```
+
 ---
 
 ## 3. Data Normalization Flow
@@ -331,6 +362,8 @@ https://uploads.mangadex.org/covers/{mangaId}/{coverFileName}.256.jpg
 
 Available sizes: `.256.jpg` (thumbnail), `.512.jpg` (medium), or no suffix (original).
 
+Cover images now use a generic `resolveMangaCover()` function that checks `manga.coverUrl` first (used by MangaPill and other non-MangaDex providers), then falls back to MangaDex CDN via `coverFileName`.
+
 ---
 
 ## 5. Project Structure
@@ -415,6 +448,9 @@ tanso/
 │   │
 │   ├── lib/
 │   │   ├── providers/                 # Legacy provider registry (uses compat.ts)
+│   │   ├── provider-id.ts             # Composite ID parsing/building (parseProviderId, buildProviderId)
+│   │   ├── cover-utils.ts             # Generic cover resolution (resolveMangaCover)
+│   │   ├── aggregator-utils.ts        # Aggregator-to-Manga shape mapping (toMangaShape)
 │   │   ├── cache.ts                   # TTLCache for source discovery and chapter lists
 │   │   ├── storage.ts                 # LocalStorage utilities for progress, history, library
 │   │   ├── fetch-utils.ts             # fetchWithRetry helper with exponential backoff
@@ -608,9 +644,9 @@ Three React hooks wrap the storage layer with state management:
 | `/api/manga/popular`       | GET    | `tags`, `ratings`, `multiSource` (default: true)                                       | Aggregator → all providers                                    | Most popular manga from all sources with deduplication.                                                                                |
 | `/api/manga/latest`        | GET    | `tags`, `ratings`, `limit`, `offset`, `multiSource` (default: true)                    | Aggregator → all providers                                    | Recently updated manga from all sources with pagination.                                                                               |
 | `/api/manga/tags`          | GET    | —                                                                                      | MangaDex `GET /manga/tag`                                     | Full list of all genre/theme tags (cached in memory)                                                                                   |
-| `/api/manga/[id]`          | GET    | —                                                                                      | MangaDex `GET /manga/{id}` + AniList `POST /graphql`          | Manga details merged with AniList metadata (score, banner, description)                                                                |
-| `/api/manga/[id]/chapters` | GET    | `source`, `sourceId`, `page`, `lang`, `chapterId`                                      | Provider registry                                             | Multi-source chapter list with chapter navigation (prev/next). MangaDex: server pagination. Others: full list, cached.                 |
-| `/api/manga/[id]/sources`  | GET    | `title` (required), `lastChapter`, `anilistId`, `status`, `altTitles` (pipe-separated) | Provider registry + scoring                                   | Discovers available sources for a manga. Tries alternate titles as fallback if primary title yields no matches. Results cached 30 min. |
+| `/api/manga/[id]`          | GET    | —                                                                                      | Provider registry (via `parseProviderId`) + AniList            | Manga details merged with AniList metadata. Supports composite IDs (`provider:sourceId`) for any provider.                              |
+| `/api/manga/[id]/chapters` | GET    | `source`, `sourceId`, `page`, `lang`, `chapterId`                                      | Provider registry                                             | Multi-source chapter list with chapter navigation (prev/next). Defaults to provider from composite ID; override with `source`/`sourceId` params. MangaDex: server pagination. Others: full list, cached. |
+| `/api/manga/[id]/sources`  | GET    | `title` (required), `lastChapter`, `anilistId`, `status`, `altTitles` (pipe-separated) | Provider registry + scoring                                   | Discovers available sources for a manga. Primary source determined by composite ID; other providers searched by title. Results cached 30 min. |
 | `/api/chapter/[id]`        | GET    | —                                                                                      | MangaDex `GET /at-home/server/{id}`                           | MangaDex chapter page images (ChapterPagesResponse, mangadex variant)                                                                  |
 | `/api/chapter/resolve`     | GET    | `source`, `chapterId`                                                                  | Provider registry (MangaPill)                                 | External provider chapter pages.                                                                                                       |
 | `/api/suggest`             | GET    | `q` (query, min 2 chars), `multiSource` (default: false)                               | MangaDex or Aggregator                                        | Search suggestions. Set `multiSource=true` to query all providers.                                                                     |

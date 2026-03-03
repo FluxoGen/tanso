@@ -3,6 +3,7 @@ import { getAllProviders, getDisplayName } from '@/providers';
 import { sourceCache } from '@/lib/cache';
 import { scoreMatch } from '@/lib/matching';
 import { getMangaChapters } from '@/providers/mangadex';
+import { parseProviderId } from '@/lib/provider-id';
 import type { MangaSource } from '@/types/manga';
 import { wrapAsLegacyProvider } from '@/providers/compat';
 
@@ -23,38 +24,66 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 			return NextResponse.json({ sources: cached });
 		}
 
+		const { provider: primaryProvider, sourceId: primarySourceId } = parseProviderId(id);
 		const sources: MangaSource[] = [];
 
-		// MangaDex source (always present) - using mythical display name
-		try {
-			const mdChapters = await getMangaChapters(id, { limit: 1 });
-			sources.push({
-				provider: 'mangadex',
-				displayName: getDisplayName('mangadex'),
-				sourceId: id,
-				matchedTitle: title,
-				chapterCount: mdChapters.total,
-				confidence: 100,
-			});
-		} catch {
-			sources.push({
-				provider: 'mangadex',
-				displayName: getDisplayName('mangadex'),
-				sourceId: id,
-				matchedTitle: title,
-				chapterCount: 0,
-				confidence: 100,
-			});
+		// Primary source (the provider that owns this manga ID)
+		if (primaryProvider === 'mangadex') {
+			try {
+				const mdChapters = await getMangaChapters(primarySourceId, { limit: 1 });
+				sources.push({
+					provider: 'mangadex',
+					displayName: getDisplayName('mangadex'),
+					sourceId: primarySourceId,
+					matchedTitle: title,
+					chapterCount: mdChapters.total,
+					confidence: 100,
+				});
+			} catch {
+				sources.push({
+					provider: 'mangadex',
+					displayName: getDisplayName('mangadex'),
+					sourceId: primarySourceId,
+					matchedTitle: title,
+					chapterCount: 0,
+					confidence: 100,
+				});
+			}
+		} else {
+			// Non-MangaDex primary: add as first source, try to get chapter count
+			const prov = getAllProviders().find((p) => p.info.id === primaryProvider);
+			if (prov) {
+				try {
+					const chapters = await prov.getChapters(primarySourceId);
+					sources.push({
+						provider: primaryProvider,
+						displayName: getDisplayName(primaryProvider),
+						sourceId: primarySourceId,
+						matchedTitle: title,
+						chapterCount: chapters.length,
+						confidence: 100,
+					});
+				} catch {
+					sources.push({
+						provider: primaryProvider,
+						displayName: getDisplayName(primaryProvider),
+						sourceId: primarySourceId,
+						matchedTitle: title,
+						chapterCount: 0,
+						confidence: 100,
+					});
+				}
+			}
 		}
 
-		// Non-MangaDex providers in parallel
+		// Other providers — search by title
 		const altTitlesRaw = searchParams.get('altTitles');
 		const altTitles = altTitlesRaw ? altTitlesRaw.split('||').filter(Boolean) : [];
 		const searchQueries = [title, ...altTitles.filter((t) => t !== title)];
 
 		const allProviders = getAllProviders();
 		const otherProviders = allProviders
-			.filter((p) => p.info.id !== 'mangadex')
+			.filter((p) => p.info.id !== primaryProvider)
 			.map((p) => wrapAsLegacyProvider(p));
 
 		const providerPromises = otherProviders.map(async (provider) => {

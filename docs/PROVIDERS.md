@@ -27,6 +27,27 @@ To protect source identities, we use mythical creature names:
 | `comick`    | Sphinx       | High-quality scans (future) |
 | `mangakakalot` | Hydra     | Multi-language support (future) |
 
+## Composite IDs
+
+Tanso uses composite IDs to identify manga across providers without changing the URL structure:
+
+- **MangaDex**: `/manga/abc-123-uuid/one-piece` — bare UUID, auto-detected
+- **Other providers**: `/manga/mangapill:manga-slug-123/one-piece` — prefixed with `provider:`
+
+### Utilities (`src/lib/provider-id.ts`)
+
+- `parseProviderId(id)` — Splits composite ID into `{ provider, sourceId }`. MangaDex UUIDs auto-detected.
+- `buildProviderId(provider, sourceId)` — Creates composite ID. Returns bare ID for MangaDex.
+- `isMangaDexId(id)` — Quick check if an ID belongs to MangaDex.
+
+### How It Works
+
+The aggregator's `deduplicateManga()` calls `buildProviderId()` when creating result IDs. This means:
+- MangaDex results keep their bare UUID: `abc-123-uuid`
+- MangaPill-only results get prefixed: `mangapill:manga-slug-123`
+- When a user clicks a MangaPill-only manga card, the URL becomes `/manga/mangapill:manga-slug-123/title`
+- The API route parses this and dispatches to the correct provider
+
 ## Provider Interface
 
 Every provider implements the `MangaProvider` interface:
@@ -153,6 +174,14 @@ export const SOURCE_ALIASES = {
   yourprovider: { display: 'Kraken', description: 'Your description' },
 };
 ```
+
+6. Add image domains to proxy allowlist in `src/app/api/proxy-image/route.ts`:
+   - Add CDN domain to `ALLOWED_DOMAINS` or `ALLOWED_DOMAIN_SUFFIXES`
+   - Add referer mapping to `PROVIDER_REFERERS`
+
+7. Cover resolution works automatically if your provider's `MangaSearchResult` returns a `coverUrl` field. The `resolveMangaCover()` function checks `coverUrl` before falling back to MangaDex CDN.
+
+8. Composite IDs are handled automatically by the aggregator. Your provider's results will get IDs like `yourprovider:sourceId` in aggregated search/browse results.
 
 ## Error Handling
 

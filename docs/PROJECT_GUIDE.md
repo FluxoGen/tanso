@@ -200,9 +200,9 @@ The `/api/manga/popular` and `/api/manga/latest` routes follow the exact same pa
 
 **File:** `src/app/api/manga/[id]/route.ts`
 
-This is the most interesting route because it merges two API sources:
+This route supports composite IDs (e.g., `mangapill:slug-123`) and merges data from the appropriate provider with AniList metadata:
 
-1. Calls `getMangaDetails(id)` to get the manga from MangaDex
+1. Parses the ID with `parseProviderId()` to determine the provider. For MangaDex, calls `getMangaDetails(id)`. For other providers, calls `getProvider(provider).getMangaDetails(sourceId)` and normalizes to `Manga` type.
 2. Takes the manga's `title` and calls `searchAniListManga(title)` to find the matching AniList entry
 3. Returns both: `{ manga: Manga, anilist: AniListMedia | null }`
 
@@ -389,11 +389,11 @@ Displays comprehensive information about a single manga with merged data from Ma
 
 **Data flow:**
 
-1. Page receives `params.id` (the MangaDex manga UUID)
+1. Page receives `params.id` (a MangaDex UUID or composite ID like `mangapill:slug-123`)
 2. Fetches `GET /api/manga/{id}` which returns `{ manga: Manga, anilist: AniListMedia | null }`
 3. Renders:
    - **Banner image** from AniList (wide cinematic image at the top, if available)
-   - **Cover image** from MangaDex at 512px quality
+   - **Cover image** via `resolveMangaCover()` — uses provider's `coverUrl` or MangaDex CDN at 512px
    - **Title** and **alt title** (English + Japanese)
    - **Author/artist** names, **year**, **status** badge
    - **AniList score** badge (if available)
@@ -802,7 +802,9 @@ The core type representing a manga title.
 | `authorName`    | `string      | null`                                          | Author name                          |
 | `artistName`    | `string      | null`                                          | Artist name (may differ from author) |
 | `lastChapter`   | `string      | null`                                          | Latest chapter number                |
-| `lastVolume`    | `string      | null`                                          | Latest volume number                 |
+| `lastVolume`    | `string      | null`                                          | Latest volume number                |
+| `provider`      | `string?`    | Provider ID (e.g., "mangadex", "mangapill"). Set for non-MangaDex manga. |
+| `coverUrl`      | `string?`    | Direct cover image URL. Used by non-MangaDex providers. |
 
 ### `MangaTag` (`src/types/manga.ts`)
 

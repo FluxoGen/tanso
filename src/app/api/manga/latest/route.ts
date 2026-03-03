@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { browseAll, getAllProviders } from '@/providers';
 import { getLatestManga } from '@/providers/mangadex';
+import { toMangaShape } from '@/lib/aggregator-utils';
 
 export async function GET(request: NextRequest) {
 	try {
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
 					sort: 'latest',
 					page,
 					genres: tags.length ? tags : undefined,
+					contentRatings: ratings.length ? ratings : undefined,
 				},
 				{
 					providers,
@@ -29,7 +31,7 @@ export async function GET(request: NextRequest) {
 			);
 
 			return NextResponse.json({
-				data: result.data.slice(0, limit),
+				data: result.data.slice(0, limit).map(toMangaShape),
 				total: result.totalItems ?? result.data.length,
 				offset,
 				limit,

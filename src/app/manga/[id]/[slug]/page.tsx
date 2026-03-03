@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChapterList } from '@/components/chapter-list';
 import { LibraryButton } from '@/components/library-button';
-import { getCoverUrl } from '@/providers/mangadex';
+import { resolveMangaCover } from '@/lib/cover-utils';
 import type { Manga, MangaTag } from '@/types/manga';
 import type { AniListMedia } from '@/types/anilist';
 
@@ -39,7 +39,7 @@ export default function MangaDetailPage({
 		return <p className="text-muted-foreground py-12 text-center">Manga not found.</p>;
 
 	const { manga, anilist } = data;
-	const coverUrl = manga.coverFileName ? getCoverUrl(manga.id, manga.coverFileName, '512') : null;
+	const coverUrl = resolveMangaCover(manga, '512');
 	const bannerUrl = anilist?.bannerImage;
 	const description = anilist?.description || manga.description;
 	const score = anilist?.averageScore;

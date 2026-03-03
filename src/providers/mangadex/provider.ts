@@ -77,17 +77,17 @@ export class MangaDexProvider implements MangaProvider {
 
 			switch (options.sort) {
 				case 'latest':
-					const latestResult = await getLatestManga(limit, options.genres, undefined, offset);
+					const latestResult = await getLatestManga(limit, options.genres, options.contentRatings, offset);
 					data = latestResult.data;
 					total = latestResult.total;
 					break;
 				case 'rating':
-					data = await getTrendingManga(limit, options.genres);
+					data = await getTrendingManga(limit, options.genres, options.contentRatings);
 					total = data.length;
 					break;
 				case 'popular':
 				default:
-					data = await getPopularManga(limit, options.genres);
+					data = await getPopularManga(limit, options.genres, options.contentRatings);
 					total = data.length;
 					break;
 			}
@@ -226,6 +226,7 @@ export class MangaDexProvider implements MangaProvider {
 		description: string;
 		status: string;
 		year: number | null;
+		contentRating?: string;
 		tags: { id: string; name: string; group: string }[];
 		coverFileName: string | null;
 		authorName: string | null;
@@ -238,6 +239,7 @@ export class MangaDexProvider implements MangaProvider {
 			coverUrl: manga.coverFileName ? getCoverUrl(manga.id, manga.coverFileName, '256') : undefined,
 			description: manga.description,
 			status: this.mapStatus(manga.status),
+			contentRating: manga.contentRating,
 			genres: manga.tags.map((t) => t.name),
 			author: manga.authorName ?? undefined,
 			artist: manga.artistName ?? undefined,

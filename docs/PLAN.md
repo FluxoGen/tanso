@@ -293,6 +293,17 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - **UI Source Indicators** — `MangaCard` component updated to optionally show source badge and multi-source count.
 - **MangaFire Removal** — Removed MangaFire (Dragon) provider due to insurmountable VRF + Cloudflare Turnstile + CDP detection layers. Browse, search, and chapter pages all required browser automation that couldn't bypass the stacked protections.
 
+### Milestone 23: Provider-Agnostic Refactor
+
+- **Composite ID System** — Created `src/lib/provider-id.ts` with `parseProviderId()` and `buildProviderId()`. MangaDex UUIDs auto-detected; other providers use `provider:sourceId` format (e.g., `mangapill:manga-slug-123`). URLs like `/manga/mangapill:slug/title` work seamlessly.
+- **Provider-Aware API Routes** — Updated `/api/manga/[id]`, `/api/manga/[id]/sources`, `/api/manga/[id]/chapters` to parse composite IDs and dispatch to the correct provider. Non-MangaDex manga now render correctly on detail pages.
+- **Extended Manga Type** — Added optional `provider` and `coverUrl` fields to `Manga` type. Non-MangaDex providers can supply direct cover URLs.
+- **Generic Cover Resolution** — Created `resolveMangaCover()` in `src/lib/cover-utils.ts` replacing direct `getCoverUrl()` calls. Checks `manga.coverUrl` first, falls back to MangaDex CDN via `coverFileName`. Updated detail page and manga card.
+- **Aggregator Composite IDs** — Updated `deduplicateManga()` to call `buildProviderId()` when creating result IDs. MangaPill-only manga now have IDs like `mangapill:slug` in search/browse results.
+- **`toMangaShape()` Mapper** — Created `src/lib/aggregator-utils.ts` to transform `AggregatedSearchResult` into `Manga`-compatible shape for the frontend, preserving `sources` and `displaySource` fields.
+- **Source Badge UI** — Updated `MangaGrid` to pass `displaySource` and `sources` props to `MangaCard`. Source badges now display correctly on home, search, and latest pages.
+- **Proxy Image Updates** — Added MangaPill domain suffixes to `ALLOWED_DOMAIN_SUFFIXES` in the image proxy route.
+
 ---
 
 ## 4. Upcoming / Future Work

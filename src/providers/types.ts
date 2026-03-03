@@ -38,6 +38,7 @@ export interface MangaSearchResult {
 	coverUrl?: string;
 	description?: string;
 	status?: 'ongoing' | 'completed' | 'hiatus' | 'cancelled' | 'unknown';
+	contentRating?: string;
 	genres?: string[];
 	author?: string;
 	artist?: string;
@@ -99,6 +100,7 @@ export interface BrowseOptions {
 	limit?: number;
 	language?: string;
 	genres?: string[];
+	contentRatings?: string[];
 	status?: string;
 	sort?: 'latest' | 'popular' | 'rating' | 'az' | 'za';
 }

@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const ALLOWED_DOMAINS = new Set(['cdn.readdetectiveconan.com', 'uploads.mangadex.org']);
+const ALLOWED_DOMAINS = new Set([
+	'cdn.readdetectiveconan.com',
+	'uploads.mangadex.org',
+	'scans-hot-fansub.mangapill.com',
+]);
 
-// Allow any *.mangadex.network subdomain
+const ALLOWED_DOMAIN_SUFFIXES = [
+	'.mangadex.network',
+	'.mangapill.com',
+];
+
 function isAllowedDomain(hostname: string): boolean {
 	if (ALLOWED_DOMAINS.has(hostname)) return true;
-	if (hostname.endsWith('.mangadex.network')) return true;
-	return false;
+	return ALLOWED_DOMAIN_SUFFIXES.some((suffix) => hostname.endsWith(suffix));
 }
 
 const PROVIDER_REFERERS: Record<string, string> = {
