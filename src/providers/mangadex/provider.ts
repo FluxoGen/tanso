@@ -77,7 +77,12 @@ export class MangaDexProvider implements MangaProvider {
 
 			switch (options.sort) {
 				case 'latest':
-					const latestResult = await getLatestManga(limit, options.genres, options.contentRatings, offset);
+					const latestResult = await getLatestManga(
+						limit,
+						options.genres,
+						options.contentRatings,
+						offset
+					);
 					data = latestResult.data;
 					total = latestResult.total;
 					break;
@@ -114,7 +119,9 @@ export class MangaDexProvider implements MangaProvider {
 				id: manga.id,
 				title: manga.title,
 				altTitles: manga.altTitle ? [manga.altTitle] : undefined,
-				coverUrl: manga.coverFileName ? getCoverUrl(manga.id, manga.coverFileName, '512') : undefined,
+				coverUrl: manga.coverFileName
+					? getCoverUrl(manga.id, manga.coverFileName, '512')
+					: undefined,
 				description: manga.description,
 				status: this.mapStatus(manga.status),
 				genres: manga.tags.map((t) => t.name),
@@ -168,7 +175,10 @@ export class MangaDexProvider implements MangaProvider {
 
 			return chapters;
 		} catch (error) {
-			throw this.createError('NETWORK_ERROR', `Failed to get chapters: ${(error as Error).message}`);
+			throw this.createError(
+				'NETWORK_ERROR',
+				`Failed to get chapters: ${(error as Error).message}`
+			);
 		}
 	}
 

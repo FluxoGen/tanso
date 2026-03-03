@@ -177,7 +177,8 @@ export function extractMetadata(media: AniListMedia): AniListMetadata {
 			?.filter((n) => n.mediaRecommendation)
 			.map((n) => ({
 				id: n.mediaRecommendation!.id,
-				title: n.mediaRecommendation!.title.english || n.mediaRecommendation!.title.romaji || 'Unknown',
+				title:
+					n.mediaRecommendation!.title.english || n.mediaRecommendation!.title.romaji || 'Unknown',
 				coverImage: n.mediaRecommendation!.coverImage?.large ?? undefined,
 			})),
 	};

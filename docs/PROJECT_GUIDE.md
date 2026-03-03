@@ -787,24 +787,24 @@ The chapter list shows visual indicators for read status:
 
 The core type representing a manga title.
 
-| Field           | Type         | Description                                    |
-| --------------- | ------------ | ---------------------------------------------- | ------------------------------------ |
-| `id`            | `string`     | MangaDex UUID                                  |
-| `title`         | `string`     | Best available English title                   |
-| `altTitle`      | `string?`    | Japanese/alternative title (shown as subtitle) |
-| `description`   | `string`     | Synopsis text                                  |
-| `status`        | `string`     | "ongoing", "completed", "hiatus", "cancelled"  |
-| `year`          | `number      | null`                                          | Year of first publication            |
-| `contentRating` | `string`     | "safe", "suggestive", "erotica"                |
-| `tags`          | `MangaTag[]` | Genre and theme tags                           |
-| `coverId`       | `string      | null`                                          | Cover art relationship ID            |
-| `coverFileName` | `string      | null`                                          | Filename for constructing cover URL  |
-| `authorName`    | `string      | null`                                          | Author name                          |
-| `artistName`    | `string      | null`                                          | Artist name (may differ from author) |
-| `lastChapter`   | `string      | null`                                          | Latest chapter number                |
-| `lastVolume`    | `string      | null`                                          | Latest volume number                |
+| Field           | Type         | Description                                                              |
+| --------------- | ------------ | ------------------------------------------------------------------------ | ------------------------------------ |
+| `id`            | `string`     | MangaDex UUID                                                            |
+| `title`         | `string`     | Best available English title                                             |
+| `altTitle`      | `string?`    | Japanese/alternative title (shown as subtitle)                           |
+| `description`   | `string`     | Synopsis text                                                            |
+| `status`        | `string`     | "ongoing", "completed", "hiatus", "cancelled"                            |
+| `year`          | `number      | null`                                                                    | Year of first publication            |
+| `contentRating` | `string`     | "safe", "suggestive", "erotica"                                          |
+| `tags`          | `MangaTag[]` | Genre and theme tags                                                     |
+| `coverId`       | `string      | null`                                                                    | Cover art relationship ID            |
+| `coverFileName` | `string      | null`                                                                    | Filename for constructing cover URL  |
+| `authorName`    | `string      | null`                                                                    | Author name                          |
+| `artistName`    | `string      | null`                                                                    | Artist name (may differ from author) |
+| `lastChapter`   | `string      | null`                                                                    | Latest chapter number                |
+| `lastVolume`    | `string      | null`                                                                    | Latest volume number                 |
 | `provider`      | `string?`    | Provider ID (e.g., "mangadex", "mangapill"). Set for non-MangaDex manga. |
-| `coverUrl`      | `string?`    | Direct cover image URL. Used by non-MangaDex providers. |
+| `coverUrl`      | `string?`    | Direct cover image URL. Used by non-MangaDex providers.                  |
 
 ### `MangaTag` (`src/types/manga.ts`)
 

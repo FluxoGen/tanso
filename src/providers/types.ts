@@ -114,13 +114,7 @@ export interface PaginatedResult<T> {
 }
 
 export interface ProviderError {
-	code:
-		| 'RATE_LIMITED'
-		| 'NOT_FOUND'
-		| 'BLOCKED'
-		| 'NETWORK_ERROR'
-		| 'PARSE_ERROR'
-		| 'UNKNOWN';
+	code: 'RATE_LIMITED' | 'NOT_FOUND' | 'BLOCKED' | 'NETWORK_ERROR' | 'PARSE_ERROR' | 'UNKNOWN';
 	message: string;
 	provider: string;
 	retryable: boolean;
@@ -174,4 +168,3 @@ export interface MangaProvider {
 	 */
 	healthCheck(): Promise<{ healthy: boolean; latency: number; message?: string }>;
 }
-

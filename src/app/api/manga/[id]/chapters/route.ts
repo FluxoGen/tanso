@@ -28,7 +28,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 			const mangadexId = searchParams.get('sourceId') ?? defaultSourceId;
 			const { getMangaChapters } = await import('@/providers/mangadex');
-			const result = await getMangaChapters(mangadexId, { limit, offset, translatedLanguage: lang });
+			const result = await getMangaChapters(mangadexId, {
+				limit,
+				offset,
+				translatedLanguage: lang,
+			});
 
 			if (currentChapterId) {
 				const nav = await getChapterNavigation(mangadexId, currentChapterId, lang);

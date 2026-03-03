@@ -6,10 +6,7 @@ const ALLOWED_DOMAINS = new Set([
 	'scans-hot-fansub.mangapill.com',
 ]);
 
-const ALLOWED_DOMAIN_SUFFIXES = [
-	'.mangadex.network',
-	'.mangapill.com',
-];
+const ALLOWED_DOMAIN_SUFFIXES = ['.mangadex.network', '.mangapill.com'];
 
 function isAllowedDomain(hostname: string): boolean {
 	if (ALLOWED_DOMAINS.has(hostname)) return true;

@@ -42,9 +42,7 @@ export function wrapAsLegacyProvider(provider: MangaProvider): LegacyContentProv
 		type: 'manga',
 		needsImageProxy: provider.info.id !== 'mangadex',
 		imageHeaders:
-			provider.info.id === 'mangapill'
-				? { Referer: 'https://mangapill.com/' }
-				: undefined,
+			provider.info.id === 'mangapill' ? { Referer: 'https://mangapill.com/' } : undefined,
 
 		async search(query: string): Promise<LegacyProviderSearchResult[]> {
 			// Try keyword search first
@@ -102,10 +100,15 @@ export function wrapAsLegacyProvider(provider: MangaProvider): LegacyContentProv
 /**
  * Cache browse results per provider to avoid re-fetching for every search query
  */
-const browseCache = new Map<string, { data: { id: string; title: string; coverUrl?: string; status?: string }[]; timestamp: number }>();
+const browseCache = new Map<
+	string,
+	{ data: { id: string; title: string; coverUrl?: string; status?: string }[]; timestamp: number }
+>();
 const BROWSE_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
-async function getBrowseFallbackResults(provider: MangaProvider): Promise<{ id: string; title: string; coverUrl?: string; status?: string }[]> {
+async function getBrowseFallbackResults(
+	provider: MangaProvider
+): Promise<{ id: string; title: string; coverUrl?: string; status?: string }[]> {
 	const cached = browseCache.get(provider.info.id);
 	if (cached && Date.now() - cached.timestamp < BROWSE_CACHE_TTL) {
 		return cached.data;
@@ -115,9 +118,7 @@ async function getBrowseFallbackResults(provider: MangaProvider): Promise<{ id: 
 	const browsePromises = [];
 	for (const sort of ['popular', 'latest', 'rating'] as const) {
 		for (let page = 1; page <= 3; page++) {
-			browsePromises.push(
-				provider.browse({ sort, page }).catch(() => null)
-			);
+			browsePromises.push(provider.browse({ sort, page }).catch(() => null));
 		}
 	}
 

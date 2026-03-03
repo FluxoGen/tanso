@@ -187,7 +187,10 @@ export class MangaPillProvider implements MangaProvider {
 				url: `https://mangapill.com/chapters/${ch.id}`,
 			}));
 		} catch (error) {
-			throw this.createError('NETWORK_ERROR', `Failed to get chapters: ${(error as Error).message}`);
+			throw this.createError(
+				'NETWORK_ERROR',
+				`Failed to get chapters: ${(error as Error).message}`
+			);
 		}
 	}
 

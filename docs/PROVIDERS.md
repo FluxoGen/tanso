@@ -20,12 +20,12 @@ src/providers/
 
 To protect source identities, we use mythical creature names:
 
-| Internal ID | Display Name | Description |
-|-------------|--------------|-------------|
-| `mangadex`  | Phoenix      | Community-driven, official API |
-| `mangapill` | Griffin      | Alternative source via Consumet |
-| `comick`    | Sphinx       | High-quality scans (future) |
-| `mangakakalot` | Hydra     | Multi-language support (future) |
+| Internal ID    | Display Name | Description                     |
+| -------------- | ------------ | ------------------------------- |
+| `mangadex`     | Phoenix      | Community-driven, official API  |
+| `mangapill`    | Griffin      | Alternative source via Consumet |
+| `comick`       | Sphinx       | High-quality scans (future)     |
+| `mangakakalot` | Hydra        | Multi-language support (future) |
 
 ## Composite IDs
 
@@ -43,6 +43,7 @@ Tanso uses composite IDs to identify manga across providers without changing the
 ### How It Works
 
 The aggregator's `deduplicateManga()` calls `buildProviderId()` when creating result IDs. This means:
+
 - MangaDex results keep their bare UUID: `abc-123-uuid`
 - MangaPill-only results get prefixed: `mangapill:manga-slug-123`
 - When a user clicks a MangaPill-only manga card, the URL becomes `/manga/mangapill:manga-slug-123/title`
@@ -54,18 +55,18 @@ Every provider implements the `MangaProvider` interface:
 
 ```typescript
 interface MangaProvider {
-  readonly info: ProviderInfo;
-  
-  search(options: SearchOptions): Promise<PaginatedResult<MangaSearchResult>>;
-  browse(options: BrowseOptions): Promise<PaginatedResult<MangaSearchResult>>;
-  getMangaDetails(mangaId: string): Promise<MangaDetails>;
-  getChapters(mangaId: string, language?: string): Promise<ChapterInfo[]>;
-  getChapterPages(chapterId: string): Promise<ChapterPagesResult>;
-  healthCheck(): Promise<{ healthy: boolean; latency: number; message?: string }>;
-  
-  // Optional
-  getTrending?(options?: BrowseOptions): Promise<PaginatedResult<MangaSearchResult>>;
-  getLatest?(options?: BrowseOptions): Promise<PaginatedResult<MangaSearchResult>>;
+	readonly info: ProviderInfo;
+
+	search(options: SearchOptions): Promise<PaginatedResult<MangaSearchResult>>;
+	browse(options: BrowseOptions): Promise<PaginatedResult<MangaSearchResult>>;
+	getMangaDetails(mangaId: string): Promise<MangaDetails>;
+	getChapters(mangaId: string, language?: string): Promise<ChapterInfo[]>;
+	getChapterPages(chapterId: string): Promise<ChapterPagesResult>;
+	healthCheck(): Promise<{ healthy: boolean; latency: number; message?: string }>;
+
+	// Optional
+	getTrending?(options?: BrowseOptions): Promise<PaginatedResult<MangaSearchResult>>;
+	getLatest?(options?: BrowseOptions): Promise<PaginatedResult<MangaSearchResult>>;
 }
 ```
 
@@ -78,19 +79,16 @@ import { searchAll, browseAll, getAllProviders } from '@/providers';
 
 // Search across all providers with deduplication
 const results = await searchAll(
-  { query: 'one piece' },
-  { 
-    providers: getAllProviders(), 
-    enrichWithAniList: true,
-    timeout: 10000 
-  }
+	{ query: 'one piece' },
+	{
+		providers: getAllProviders(),
+		enrichWithAniList: true,
+		timeout: 10000,
+	}
 );
 
 // Browse popular manga from all sources
-const popular = await browseAll(
-  { sort: 'popular' },
-  { providers: getAllProviders() }
-);
+const popular = await browseAll({ sort: 'popular' }, { providers: getAllProviders() });
 ```
 
 ### Deduplication
@@ -105,16 +103,16 @@ The aggregator uses intelligent deduplication:
 
 All discovery APIs support multi-source mode via the `multiSource` query parameter:
 
-| Route | Description | Multi-Source |
-|-------|-------------|--------------|
-| `/api/search?q=...` | Search manga | `?multiSource=true` |
-| `/api/suggest?q=...` | Search suggestions | `?multiSource=true` |
-| `/api/manga/trending` | Trending manga | Default enabled |
-| `/api/manga/popular` | Popular manga | Default enabled |
-| `/api/manga/latest` | Latest updates | Default enabled |
-| `/api/manga/[id]` | Manga details | Via `?source=` |
-| `/api/manga/[id]/sources` | Available sources | N/A |
-| `/api/chapter/resolve` | Chapter pages (any provider) | N/A |
+| Route                     | Description                  | Multi-Source        |
+| ------------------------- | ---------------------------- | ------------------- |
+| `/api/search?q=...`       | Search manga                 | `?multiSource=true` |
+| `/api/suggest?q=...`      | Search suggestions           | `?multiSource=true` |
+| `/api/manga/trending`     | Trending manga               | Default enabled     |
+| `/api/manga/popular`      | Popular manga                | Default enabled     |
+| `/api/manga/latest`       | Latest updates               | Default enabled     |
+| `/api/manga/[id]`         | Manga details                | Via `?source=`      |
+| `/api/manga/[id]/sources` | Available sources            | N/A                 |
+| `/api/chapter/resolve`    | Chapter pages (any provider) | N/A                 |
 
 ## Adding a New Provider
 
@@ -160,9 +158,9 @@ export const yourprovider = new YourProvider();
 import { yourprovider } from './yourprovider';
 
 export const providers = {
-  mangadex,
-  mangapill,
-  yourprovider,  // Add here
+	mangadex,
+	mangapill,
+	yourprovider, // Add here
 };
 ```
 
@@ -170,8 +168,8 @@ export const providers = {
 
 ```typescript
 export const SOURCE_ALIASES = {
-  // ...
-  yourprovider: { display: 'Kraken', description: 'Your description' },
+	// ...
+	yourprovider: { display: 'Kraken', description: 'Your description' },
 };
 ```
 
@@ -189,12 +187,12 @@ Providers throw `ProviderError` with standardized codes:
 
 ```typescript
 type ProviderErrorCode =
-  | 'RATE_LIMITED'    // Too many requests
-  | 'NOT_FOUND'       // Resource doesn't exist
-  | 'BLOCKED'         // Cloudflare/anti-bot
-  | 'NETWORK_ERROR'   // Connection failed
-  | 'PARSE_ERROR'     // Invalid response
-  | 'UNKNOWN';        // Unexpected error
+	| 'RATE_LIMITED' // Too many requests
+	| 'NOT_FOUND' // Resource doesn't exist
+	| 'BLOCKED' // Cloudflare/anti-bot
+	| 'NETWORK_ERROR' // Connection failed
+	| 'PARSE_ERROR' // Invalid response
+	| 'UNKNOWN'; // Unexpected error
 ```
 
 ## Future Improvements

@@ -268,10 +268,7 @@ export function ChapterList({
 									title={`${group.variations.length} other version${group.variations.length > 1 ? 's' : ''} available`}
 								>
 									<ChevronDown
-										className={cn(
-											'h-3.5 w-3.5 transition-transform',
-											isExpanded && 'rotate-180'
-										)}
+										className={cn('h-3.5 w-3.5 transition-transform', isExpanded && 'rotate-180')}
 									/>
 								</button>
 							)}
@@ -292,13 +289,8 @@ export function ChapterList({
 				if (!expandedProviders.has(group.provider) || group.variations.length === 0) return null;
 
 				return (
-					<div
-						key={`${group.provider}-variations`}
-						className="bg-muted/50 rounded-lg p-3"
-					>
-						<p className="text-muted-foreground mb-2 text-xs">
-							{group.displayName} versions:
-						</p>
+					<div key={`${group.provider}-variations`} className="bg-muted/50 rounded-lg p-3">
+						<p className="text-muted-foreground mb-2 text-xs">{group.displayName} versions:</p>
 						<div className="space-y-1.5">
 							{[group.primary, ...group.variations].map((s) => {
 								const isSelected =
