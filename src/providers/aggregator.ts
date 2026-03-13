@@ -114,6 +114,13 @@ export async function browseAll(
 
 	const deduplicated = deduplicateManga(allResults);
 
+	deduplicated.sort((a, b) => {
+		if (!a.updatedAt && !b.updatedAt) return 0;
+		if (!a.updatedAt) return 1;
+		if (!b.updatedAt) return -1;
+		return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+	});
+
 	let enriched = deduplicated;
 	if (enrichWithAniList && deduplicated.length > 0) {
 		enriched = await enrichWithAniListMetadata(deduplicated.slice(0, 20));
@@ -215,6 +222,11 @@ function deduplicateManga(results: MangaSearchResult[]): AggregatedSearchResult[
 			}
 			if (!existing.description && manga.description) {
 				existing.description = manga.description;
+			}
+			if (manga.updatedAt) {
+				if (!existing.updatedAt || manga.updatedAt > existing.updatedAt) {
+					existing.updatedAt = manga.updatedAt;
+				}
 			}
 		} else {
 			const compositeId = buildProviderId(manga.provider, manga.id);

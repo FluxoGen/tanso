@@ -241,6 +241,7 @@ export class MangaDexProvider implements MangaProvider {
 		coverFileName: string | null;
 		authorName: string | null;
 		artistName: string | null;
+		updatedAt?: string;
 	}): MangaSearchResult {
 		return {
 			id: manga.id,
@@ -256,6 +257,7 @@ export class MangaDexProvider implements MangaProvider {
 			year: manga.year ?? undefined,
 			provider: PROVIDER_ID,
 			url: `https://mangadex.org/title/${manga.id}`,
+			updatedAt: manga.updatedAt,
 		};
 	}
 

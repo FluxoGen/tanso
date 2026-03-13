@@ -1,128 +1,81 @@
 /**
- * MangaPill Provider Implementation
+ * MangaPill Provider — First-Party Scraper
  *
- * Uses the Consumet library for manga data.
- * Migrated from src/lib/providers/mangareader.ts
+ * Direct HTML scraping using cheerio, replacing the Consumet dependency.
+ * Supports search, manga details, chapter pages, and browsing recent chapters.
  */
 
-import { MANGA } from '@consumet/extensions';
 import type {
-	MangaProvider,
 	ProviderInfo,
 	MangaSearchResult,
 	MangaDetails,
 	ChapterInfo,
 	ChapterPagesResult,
 	SearchOptions,
+	BrowseOptions,
 	PaginatedResult,
-	ProviderError,
 } from '../types';
+import { ScraperBase } from '../base';
+import { RateLimiter } from '../base';
+import { MANGAPILL_SELECTORS as S } from './selectors';
 
 const PROVIDER_ID = 'mangapill';
-const TIMEOUT_MS = 8000;
+const BASE_URL = 'https://mangapill.com';
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-	return Promise.race([
-		promise,
-		new Promise<never>((_, reject) =>
-			setTimeout(() => reject(new Error(`Timed out after ${ms}ms`)), ms)
-		),
-	]);
-}
+function parseChapterNumber(text: string, id: string): number | string {
+	const fromText = text.match(/Chapter\s*(\d+(?:\.\d+)?)/i);
+	if (fromText) return parseFloat(fromText[1]);
 
-function parseChapterNumber(ch: {
-	id: string;
-	chapterNumber?: number;
-	chapter?: string;
-	title?: string;
-}): number | string {
-	if (ch.chapter != null) return parseFloat(ch.chapter) || ch.chapter;
-	if (ch.chapterNumber != null && !isNaN(ch.chapterNumber)) {
-		return ch.chapterNumber;
-	}
-	if (ch.title) {
-		const match = ch.title.match(/chapter\s*(\d+(?:\.\d+)?)/i);
-		if (match) return parseFloat(match[1]);
-	}
-	const idMatch = ch.id.match(/chapter-(\d+(?:\.\d+)?)/);
-	if (idMatch) return parseFloat(idMatch[1]);
+	const fromId = id.match(/chapter-(\d+(?:\.\d+)?)/);
+	if (fromId) return parseFloat(fromId[1]);
+
+	const hashNum = text.match(/#(\d+(?:\.\d+)?)/);
+	if (hashNum) return parseFloat(hashNum[1]);
+
 	return 0;
 }
 
-function safeDate(raw: string | undefined | null): string | undefined {
-	if (!raw) return undefined;
-
-	const d = new Date(raw);
-	if (!isNaN(d.getTime())) return d.toISOString();
-
-	const now = new Date();
-	const relativeMatch = raw.match(/(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago/i);
-	if (relativeMatch) {
-		const value = parseInt(relativeMatch[1], 10);
-		const unit = relativeMatch[2].toLowerCase();
-		switch (unit) {
-			case 'second':
-				now.setSeconds(now.getSeconds() - value);
-				break;
-			case 'minute':
-				now.setMinutes(now.getMinutes() - value);
-				break;
-			case 'hour':
-				now.setHours(now.getHours() - value);
-				break;
-			case 'day':
-				now.setDate(now.getDate() - value);
-				break;
-			case 'week':
-				now.setDate(now.getDate() - value * 7);
-				break;
-			case 'month':
-				now.setMonth(now.getMonth() - value);
-				break;
-			case 'year':
-				now.setFullYear(now.getFullYear() - value);
-				break;
-		}
-		return now.toISOString();
-	}
-
-	return undefined;
-}
-
-export class MangaPillProvider implements MangaProvider {
+export class MangaPillProvider extends ScraperBase {
 	readonly info: ProviderInfo = {
 		id: PROVIDER_ID,
 		name: 'MangaPill',
-		baseUrl: 'https://mangapill.com',
+		baseUrl: BASE_URL,
 		languages: ['en'],
-		features: ['search', 'chapters', 'pages'],
-		rateLimit: {
-			requestsPerMinute: 30,
-		},
+		features: ['search', 'browse', 'chapters', 'pages'],
+		rateLimit: { requestsPerMinute: 30 },
 	};
 
-	private client = new MANGA.MangaPill();
+	private limiter = new RateLimiter(30);
+
+	private async fetchLimited(url: string) {
+		await this.limiter.acquire();
+		return this.fetchPage(url);
+	}
 
 	async search(options: SearchOptions): Promise<PaginatedResult<MangaSearchResult>> {
 		try {
-			const results = await withTimeout(this.client.search(options.query), TIMEOUT_MS);
+			const $ = await this.fetchLimited(
+				`${BASE_URL}/search?q=${encodeURIComponent(options.query)}`
+			);
 
-			if (!results?.results) {
-				return {
-					data: [],
-					page: 1,
-					totalPages: 1,
-					hasNextPage: false,
-				};
-			}
+			const data: MangaSearchResult[] = [];
 
-			const data = results.results.map((r) => ({
-				id: r.id,
-				title: r.title as string,
-				coverUrl: r.image ?? undefined,
-				provider: PROVIDER_ID,
-				url: `https://mangapill.com/manga/${r.id}`,
-			}));
+			$(S.search.container).each((_, el) => {
+				const linkHref = $(el).find(S.search.link).attr('href') ?? '';
+				const id = linkHref.split('/manga/')[1];
+				if (!id) return;
+
+				const title = $(el).find(S.search.title).first().text().trim();
+				const coverUrl = $(el).find(S.search.image).attr('data-src') ?? undefined;
+
+				data.push({
+					id,
+					title,
+					coverUrl,
+					provider: PROVIDER_ID,
+					url: `${BASE_URL}/manga/${id}`,
+				});
+			});
 
 			return {
 				data,
@@ -136,55 +89,121 @@ export class MangaPillProvider implements MangaProvider {
 		}
 	}
 
-	async browse(): Promise<PaginatedResult<MangaSearchResult>> {
-		throw this.createError('UNKNOWN', 'MangaPill does not support browsing');
+	async browse(_options?: BrowseOptions): Promise<PaginatedResult<MangaSearchResult>> {
+		try {
+			const $ = await this.fetchLimited(`${BASE_URL}/chapters`);
+
+			const seen = new Map<string, MangaSearchResult>();
+
+			$(S.recentChapters.container).each((_, el) => {
+				const mangaLinkEl = $(el).find(S.recentChapters.mangaLink);
+				const href = mangaLinkEl.attr('href') ?? '';
+				const id = href.split('/manga/')[1];
+				if (!id || seen.has(id)) return;
+
+				const title = $(el).find(S.recentChapters.mangaTitle).first().text().trim();
+				const coverUrl = $(el).find(S.recentChapters.coverImage).attr('data-src') ?? undefined;
+
+				const timeEl = $(el).find(S.recentChapters.datetime);
+				const updatedAt = this.parseDate(timeEl.attr('datetime') ?? timeEl.text().trim());
+
+				seen.set(id, {
+					id,
+					title,
+					coverUrl,
+					provider: PROVIDER_ID,
+					url: `${BASE_URL}/manga/${id}`,
+					updatedAt,
+				});
+			});
+
+			const data = Array.from(seen.values());
+
+			return {
+				data,
+				page: 1,
+				totalPages: 1,
+				totalItems: data.length,
+				hasNextPage: false,
+			};
+		} catch (error) {
+			throw this.createError('NETWORK_ERROR', `Browse failed: ${(error as Error).message}`);
+		}
 	}
 
 	async getMangaDetails(mangaId: string): Promise<MangaDetails> {
 		try {
-			const info = await withTimeout(this.client.fetchMangaInfo(mangaId), TIMEOUT_MS);
+			const $ = await this.fetchLimited(`${BASE_URL}/manga/${mangaId}`);
 
-			if (!info) {
-				throw this.createError('NOT_FOUND', 'Manga not found');
-			}
+			const title = $(S.mangaInfo.title).text().trim();
+			if (!title) throw this.createError('NOT_FOUND', 'Manga not found');
+
+			const description = $(S.mangaInfo.description)
+				.text()
+				.split('\n')
+				.join(' ')
+				.trim();
+
+			const statusText = $(S.mangaInfo.status).text();
+			const status = this.mapStatus(statusText);
+
+			const yearText = $(S.mangaInfo.year).text();
+			const yearMatch = yearText.match(/\d{4}/);
+			const year = yearMatch ? parseInt(yearMatch[0], 10) : undefined;
+
+			const genres: string[] = [];
+			$(S.mangaInfo.genres).each((_, el) => {
+				const g = $(el).text().trim();
+				if (g && g !== 'Genres') genres.push(g);
+			});
+
+			const totalChapters = $(S.mangaInfo.chapters).length;
 
 			return {
 				id: mangaId,
-				title: info.title as string,
-				coverUrl: typeof info.image === 'string' ? info.image : undefined,
-				description: typeof info.description === 'string' ? info.description : undefined,
-				status: this.mapStatus(typeof info.status === 'string' ? info.status : ''),
+				title,
+				description,
+				status,
+				genres,
+				year,
 				provider: PROVIDER_ID,
-				url: `https://mangapill.com/manga/${mangaId}`,
-				totalChapters: info.chapters?.length,
+				url: `${BASE_URL}/manga/${mangaId}`,
+				totalChapters: totalChapters || undefined,
 			};
 		} catch (error) {
-			if ((error as ProviderError).code) throw error;
-			throw this.createError('NETWORK_ERROR', `Failed to get details: ${(error as Error).message}`);
+			if ((error as { code?: string }).code) throw error;
+			throw this.createError(
+				'NETWORK_ERROR',
+				`Failed to get details: ${(error as Error).message}`
+			);
 		}
 	}
 
 	async getChapters(mangaId: string): Promise<ChapterInfo[]> {
 		try {
-			const info = await withTimeout(this.client.fetchMangaInfo(mangaId), TIMEOUT_MS);
+			const $ = await this.fetchLimited(`${BASE_URL}/manga/${mangaId}`);
 
-			if (!info?.chapters) {
-				return [];
-			}
+			const chapters: ChapterInfo[] = [];
 
-			return info.chapters.map((ch) => ({
-				id: ch.id,
-				number: parseChapterNumber(
-					ch as { id: string; chapterNumber?: number; chapter?: string; title?: string }
-				),
-				title: (ch.title as string) ?? undefined,
-				volume: ch.volume != null ? parseInt(String(ch.volume), 10) : undefined,
-				language: 'en',
-				uploadDate: safeDate(ch.releaseDate as string | undefined),
-				scanlator: 'MangaPill',
-				provider: PROVIDER_ID,
-				url: `https://mangapill.com/chapters/${ch.id}`,
-			}));
+			$(S.mangaInfo.chapters).each((_, el) => {
+				const href = $(el).attr('href') ?? '';
+				const chapterId = href.split('/chapters/')[1];
+				if (!chapterId) return;
+
+				const text = $(el).text().trim();
+
+				chapters.push({
+					id: chapterId,
+					number: parseChapterNumber(text, chapterId),
+					title: text || undefined,
+					language: 'en',
+					scanlator: 'MangaPill',
+					provider: PROVIDER_ID,
+					url: `${BASE_URL}/chapters/${chapterId}`,
+				});
+			});
+
+			return chapters;
 		} catch (error) {
 			throw this.createError(
 				'NETWORK_ERROR',
@@ -195,33 +214,41 @@ export class MangaPillProvider implements MangaProvider {
 
 	async getChapterPages(chapterId: string): Promise<ChapterPagesResult> {
 		try {
-			const data = await withTimeout(this.client.fetchChapterPages(chapterId), TIMEOUT_MS);
+			const $ = await this.fetchLimited(`${BASE_URL}/chapters/${chapterId}`);
+
+			const pages: { index: number; url: string }[] = [];
+
+			$(S.chapterPages.container).each((idx, el) => {
+				const img =
+					$(el).find(S.chapterPages.image).attr('data-src') ??
+					$(el).find(S.chapterPages.image).attr('src');
+				if (img) {
+					pages.push({ index: idx, url: img });
+				}
+			});
 
 			return {
 				chapterId,
 				provider: PROVIDER_ID,
-				referer: 'https://mangapill.com/',
-				pages: (data ?? []).map((p, idx) => ({
-					index: idx,
-					url: p.img,
-				})),
+				referer: `${BASE_URL}/`,
+				pages,
 			};
 		} catch (error) {
-			throw this.createError('NETWORK_ERROR', `Failed to get pages: ${(error as Error).message}`);
+			throw this.createError(
+				'NETWORK_ERROR',
+				`Failed to get pages: ${(error as Error).message}`
+			);
 		}
 	}
 
 	async healthCheck(): Promise<{ healthy: boolean; latency: number; message?: string }> {
 		const start = Date.now();
-
 		try {
-			const results = await withTimeout(this.client.search('one piece'), 5000);
+			const $ = await this.fetchLimited(`${BASE_URL}/search?q=one+piece`);
 			const latency = Date.now() - start;
+			const hasResults = $(S.search.container).length > 0;
 
-			if (results?.results?.length) {
-				return { healthy: true, latency };
-			}
-
+			if (hasResults) return { healthy: true, latency };
 			return { healthy: false, latency, message: 'No search results returned' };
 		} catch (error) {
 			return {
@@ -232,23 +259,15 @@ export class MangaPillProvider implements MangaProvider {
 		}
 	}
 
-	private mapStatus(status: string): 'ongoing' | 'completed' | 'hiatus' | 'cancelled' | 'unknown' {
-		const s = status.toLowerCase();
+	private mapStatus(
+		text: string
+	): 'ongoing' | 'completed' | 'hiatus' | 'cancelled' | 'unknown' {
+		const s = text.toLowerCase();
 		if (s.includes('ongoing') || s.includes('publishing')) return 'ongoing';
 		if (s.includes('completed') || s.includes('finished')) return 'completed';
 		if (s.includes('hiatus')) return 'hiatus';
 		if (s.includes('cancelled') || s.includes('discontinued')) return 'cancelled';
 		return 'unknown';
-	}
-
-	private createError(code: ProviderError['code'], message: string): ProviderError {
-		return {
-			code,
-			message,
-			provider: PROVIDER_ID,
-			retryable: code === 'RATE_LIMITED' || code === 'NETWORK_ERROR',
-			retryAfter: code === 'RATE_LIMITED' ? 60 : undefined,
-		};
 	}
 }
 

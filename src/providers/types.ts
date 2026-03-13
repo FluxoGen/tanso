@@ -46,6 +46,7 @@ export interface MangaSearchResult {
 	rating?: number;
 	provider: string;
 	url: string;
+	updatedAt?: string;
 }
 
 export interface MangaDetails extends MangaSearchResult {

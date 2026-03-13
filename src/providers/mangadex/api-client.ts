@@ -36,6 +36,7 @@ interface MdMangaAttributes {
 	}[];
 	lastChapter: string | null;
 	lastVolume: string | null;
+	updatedAt: string;
 }
 
 interface MdChapterAttributes {
@@ -107,6 +108,7 @@ function normalizeManga(item: {
 		artistName: (artistRel?.attributes?.['name'] as string) ?? null,
 		lastChapter: a.lastChapter,
 		lastVolume: a.lastVolume,
+		updatedAt: a.updatedAt,
 	};
 }
 

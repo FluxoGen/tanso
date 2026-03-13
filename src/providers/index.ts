@@ -6,7 +6,7 @@
  *
  * Current providers:
  * - MangaDex (Phoenix): Primary source, official API
- * - MangaPill (Griffin): Consumet-based provider
+ * - MangaPill (Griffin): First-party scraper
  *
  * Metadata enrichment:
  * - AniList: Descriptions, recommendations, scores

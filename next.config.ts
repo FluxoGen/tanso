@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-	serverExternalPackages: ['@consumet/extensions', 'got-scraping'],
+	serverExternalPackages: ['got-scraping'],
 	async headers() {
 		return [
 			{

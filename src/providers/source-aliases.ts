@@ -22,7 +22,7 @@ export const SOURCE_ALIASES: Record<string, SourceAlias> = {
 	},
 	mangapill: {
 		display: 'Griffin',
-		description: 'Alternative source via Consumet',
+		description: 'Alternative source, first-party scraper',
 		icon: '🦅',
 	},
 	comick: {

@@ -41,9 +41,9 @@ The app does not host any manga content itself. Instead, it aggregates data from
 
 - **AniList GraphQL API** (`https://graphql.anilist.co`) — A supplementary data source. Provides richer metadata than MangaDex: community scores, detailed descriptions, banner images, and recommendations. Used on the manga detail page to enrich the experience.
 
-- **MangaPill** (via `@consumet/extensions`) — A secondary chapter source. When MangaDex has limited chapters (e.g., due to DMCA takedowns), MangaPill provides an alternative source. Accessed through the Consumet scraping library.
+- **MangaPill** (first-party scraper via cheerio) — A secondary chapter source with browse support. When MangaDex has limited chapters (e.g., due to DMCA takedowns), MangaPill provides an alternative source. Uses direct HTML scraping with CSS selectors defined in a centralized selectors file for easy maintenance.
 
-**Why multiple sources?** MangaDex has the best metadata and community but some manga have chapters removed due to licensing. MangaPill fills those gaps. AniList provides rich metadata that neither MangaDex nor MangaPill have. The provider registry pattern makes adding future sources trivial.
+**Why multiple sources?** MangaDex has the best metadata and community but some manga have chapters removed due to licensing. MangaPill fills those gaps with its own chapter library and recent updates feed. AniList provides rich metadata that neither MangaDex nor MangaPill have. The scraper base infrastructure makes adding future sources trivial.
 
 ---
 
@@ -60,7 +60,7 @@ The provider registry is an abstraction layer that wraps all content sources beh
 - `types.ts` — Defines `ContentProvider` and `ProviderSearchResult` interfaces
 - `index.ts` — Registry with `registerProvider()`, `getProvider()`, `listProviders()` functions
 - `mangadex.ts` — MangaDex provider wrapping existing `src/lib/mangadex.ts` functions
-- `mangareader.ts` — MangaPill provider wrapping `@consumet/extensions` with 5-second timeouts
+- `mangareader.ts` — MangaPill provider (now a first-party scraper using cheerio)
 
 **Adding a new provider** requires only creating a new file that implements `ContentProvider` and calling `registerProvider()` in `index.ts`. No other files need changes.
 
@@ -234,11 +234,11 @@ The client receives a single response containing all the data it needs for the d
 - No query parameters. MangaDex-only route.
 - Calls `getChapterPages(id)` and returns `ChapterPagesResponse` with `source: "mangadex"`, `baseUrl`, `hash`, `data[]`, `dataSaver[]`
 
-### `/api/chapter/resolve` — Consumet Chapter Page Images
+### `/api/chapter/resolve` — External Provider Chapter Page Images
 
 **File:** `src/app/api/chapter/resolve/route.ts`
 
-- Reads `source` and `chapterId` query parameters (query-param based to handle `/` in Consumet chapter IDs)
+- Reads `source` and `chapterId` query parameters (query-param based to handle `/` in chapter IDs)
 - Looks up provider in registry, calls `provider.getChapterPages(chapterId)`
 - Returns: `ChapterPagesResponse` with `source`, `pages[]`
 
@@ -417,14 +417,14 @@ The page makes the best use of both API sources:
 
 ### Chapter Reader Page
 
-**Files:** `src/app/read/[chapterId]/page.tsx` (MangaDex entry), `src/app/read/ext/page.tsx` (Consumet entry)
+**Files:** `src/app/read/[chapterId]/page.tsx` (MangaDex entry), `src/app/read/ext/page.tsx` (external source entry)
 
 The core reading experience. Displays one manga page at a time with multiple navigation methods. Both entry points render the shared `ReaderContent` component.
 
 **Dual entry points:**
 
 - `/read/{chapterId}?manga={mangaId}` — MangaDex chapters (path-based, UUIDs are safe)
-- `/read/ext?manga={mangaId}&source={provider}&chapterId={id}` — Consumet chapters (query-param based to handle `/` in chapter IDs)
+- `/read/ext?manga={mangaId}&source={provider}&chapterId={id}` — External provider chapters (query-param based to handle `/` in chapter IDs)
 
 **State:**
 
@@ -435,7 +435,7 @@ The core reading experience. Displays one manga page at a time with multiple nav
 **Data flow:**
 
 1. MangaDex: fetches `GET /api/chapter/{chapterId}`, constructs URLs from `baseUrl/quality/hash/filename`
-2. Consumet: fetches `GET /api/chapter/resolve?source={provider}&chapterId={id}`, uses direct image URLs from `pages[].img`
+2. External sources: fetches `GET /api/chapter/resolve?source={provider}&chapterId={id}`, uses direct image URLs from `pages[].img`
 
 **Navigation methods (5 ways to navigate):**
 
@@ -446,10 +446,10 @@ The core reading experience. Displays one manga page at a time with multiple nav
 5. **Page selector** — Dropdown to jump to any page
 
 **Image preloading:**
-When the current page changes, the component creates `new Image()` objects for the next 3 pages. Works identically for both MangaDex and Consumet sources.
+When the current page changes, the component creates `new Image()` objects for the next 3 pages. Works identically for both MangaDex and external sources.
 
 **Quality toggle:**
-Only shown for MangaDex chapters (which have two quality tiers). Hidden for Consumet chapters (single quality). The `isMangaDex` flag is determined by checking `"hash" in pages` for proper TypeScript narrowing.
+Only shown for MangaDex chapters (which have two quality tiers). Hidden for external chapters (single quality). The `isMangaDex` flag is determined by checking `"hash" in pages` for proper TypeScript narrowing.
 
 ---
 
@@ -503,12 +503,12 @@ Only shown for MangaDex chapters (which have two quality tiers). Hidden for Cons
 **`ChapterList`** (`src/components/chapter-list.tsx`)
 
 - Takes `mangaId`, `mangaTitle`, `lastChapter`, and optional `anilistId` props
-- Progressive source loading: MangaDex tab shown immediately, Consumet sources discovered in background
+- Progressive source loading: MangaDex tab shown immediately, external sources discovered in background
 - Source tabs display provider name, matched title (for non-MangaDex), and chapter count
 - AbortController cancels pending fetches when switching source tabs
 - MangaDex chapters use server-side pagination; other sources use client-side pagination
 - MangaDex chapters link to `/read/{chapterId}?manga={mangaId}`
-- Consumet chapters link to `/read/ext?manga={mangaId}&source={provider}&chapterId={encodedId}`
+- External chapters link to `/read/ext?manga={mangaId}&source={provider}&chapterId={encodedId}`
 - Loading, error, empty, and retry states per source
 
 ---
@@ -818,11 +818,11 @@ The core type representing a manga title.
 
 | Field                | Type     | Description                                               |
 | -------------------- | -------- | --------------------------------------------------------- | --------------------------------------------- |
-| `id`                 | `string` | Chapter ID (MangaDex UUID or Consumet slug)               |
+| `id`                 | `string` | Chapter ID (MangaDex UUID or external provider slug)      |
 | `title`              | `string  | null`                                                     | Chapter title (may be null)                   |
 | `chapter`            | `string  | null`                                                     | Chapter number (string, e.g., "24.5")         |
 | `volume`             | `string  | null`                                                     | Volume number                                 |
-| `pages`              | `number` | Number of pages in the chapter (0 = unknown for Consumet) |
+| `pages`              | `number` | Number of pages in the chapter (0 = unknown for external sources) |
 | `translatedLanguage` | `string` | Language code (e.g., "en")                                |
 | `publishAt`          | `string` | ISO timestamp of when the chapter was published           |
 | `scanlationGroup`    | `string  | null`                                                     | Name of the group that scanlated this chapter |

@@ -124,7 +124,7 @@ The application follows a **multi-tier architecture**:
 4. **External APIs:** Multiple data sources:
    - **MangaDex (Phoenix)** — Primary source for manga content: titles, chapters, tags, cover images, and chapter page images.
    - **AniList** — Metadata enrichment: community scores, descriptions, banner images, recommendations.
-   - **MangaPill (Griffin)** (via `@consumet/extensions`) — Alternative chapter source. Images are routed through `/api/proxy-image` because MangaPill's CDN requires a Referer header.
+   - **MangaPill (Griffin)** (first-party scraper via cheerio) — Alternative chapter source with browse support for recent chapters. Images are routed through `/api/proxy-image` because MangaPill's CDN requires a Referer header.
 
 ### Why proxy instead of calling APIs directly from the client?
 
@@ -345,7 +345,7 @@ Chapter images are delivered through different pipelines depending on the source
 2. The client builds full image URLs: `{baseUrl}/data/{hash}/{filename}` (HQ) or `{baseUrl}/data-saver/{hash}/{filename}` (Lite).
 3. Base URL is valid ~15 minutes.
 
-**MangaPill chapters (Griffin)** (via `@consumet/extensions`) require server-side proxying:
+**MangaPill chapters (Griffin)** (first-party cheerio scraper) require server-side proxying:
 
 1. The API route calls `provider.getChapterPages(chapterId)` which scrapes the source.
 2. The response contains `pages[]` with `img` (CDN URL) and `page` (number).
@@ -389,7 +389,7 @@ tanso/
 │   │   │   ├── [chapterId]/
 │   │   │   │   └── page.tsx           # Reader: paged + longstrip modes, progress tracking, chapter navigation
 │   │   │   └── ext/
-│   │   │       └── page.tsx           # Consumet reader: query-param entry point for external sources
+│   │   │       └── page.tsx           # External reader: query-param entry point for non-MangaDex sources
 │   │   ├── latest/
 │   │   │   └── page.tsx               # Latest manga with infinite scroll/pagination toggle, page input, filters
 │   │   ├── library/
@@ -408,7 +408,7 @@ tanso/
 │   │       │       └── sources/route.ts   # GET — source discovery (progressive loading)
 │   │       ├── chapter/
 │   │       │   ├── [id]/route.ts      # GET — MangaDex chapter page images
-│   │       │   └── resolve/route.ts   # GET — Consumet chapter page images (query-param based)
+│   │       │   └── resolve/route.ts   # GET — External provider chapter page images (query-param based)
 │   │       ├── suggest/route.ts       # GET — search suggestions with cover/author/year
 │   │       ├── proxy-image/route.ts   # GET — secured image proxy (domain whitelist, SSRF prevention)
 │   │       └── search/route.ts        # GET — search with query + genre filters
@@ -441,8 +441,12 @@ tanso/
 │   │   ├── mangadex/                  # Primary source (Phoenix)
 │   │   │   ├── api-client.ts         # MangaDex REST API client
 │   │   │   └── index.ts              # Exports
-│   │   ├── mangapill/                 # Consumet-based (Griffin)
-│   │   │   └── provider.ts           # MangaProvider wrapper
+│   │   ├── base/                      # Shared scraper infrastructure
+│   │   │   ├── scraper-base.ts       # Base class for HTML scraper providers
+│   │   │   └── rate-limiter.ts       # Token-bucket rate limiter
+│   │   ├── mangapill/                 # First-party scraper (Griffin)
+│   │   │   ├── provider.ts           # ScraperBase implementation with browse support
+│   │   │   └── selectors.ts          # CSS selectors (easy to update)
 │   │   └── anilist/                   # Metadata enrichment
 │   │       └── client.ts             # AniList GraphQL client
 │   │
@@ -672,7 +676,7 @@ All routes follow the same pattern:
 **Chapter resolution routes** (`/api/manga/[id]/chapters`, `/api/manga/[id]/sources`, `/api/chapter/resolve`) use the provider registry to dispatch to the correct provider:
 
 - `source=mangadex` → MangaDex API
-- `source=mangapill` → MangaPill via Consumet
+- `source=mangapill` → MangaPill via first-party scraper
 
 **Caching strategy:**
 

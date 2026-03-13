@@ -34,5 +34,6 @@ export function toMangaShape(
 		provider: result.provider,
 		sources: result.sources,
 		displaySource: result.displaySource,
+		updatedAt: result.updatedAt,
 	};
 }

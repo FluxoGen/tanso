@@ -1,7 +1,7 @@
 /**
  * MangaPill Provider
  *
- * Manga provider using the Consumet library.
+ * First-party scraper using cheerio for HTML parsing.
  */
 
 export { MangaPillProvider, mangapill } from './provider';

@@ -21,6 +21,7 @@ export interface Manga {
 	lastChapter: string | null;
 	lastVolume: string | null;
 	provider?: string;
+	updatedAt?: string;
 }
 
 export interface Chapter {

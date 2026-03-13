@@ -9,10 +9,15 @@ src/providers/
 ├── types.ts              # Core interfaces (MangaProvider, etc.)
 ├── index.ts              # Provider registry
 ├── source-aliases.ts     # Display name mapping (mythical theme)
-├── aggregator.ts         # Multi-source queries with deduplication
+├── aggregator.ts         # Multi-source queries with deduplication + timestamp sorting
 ├── compat.ts             # Legacy compatibility layer
-├── mangadex/             # Primary source (Phoenix)
-├── mangapill/            # Consumet-based (Griffin)
+├── base/                 # Shared scraper infrastructure
+│   ├── scraper-base.ts   # Base class for HTML scraper providers
+│   └── rate-limiter.ts   # Token-bucket rate limiter
+├── mangadex/             # Primary source (Phoenix) — official API
+├── mangapill/            # First-party scraper (Griffin)
+│   ├── provider.ts       # ScraperBase implementation with browse support
+│   └── selectors.ts      # CSS selectors (easy to update when site changes)
 └── anilist/              # Metadata enrichment
 ```
 
@@ -23,7 +28,7 @@ To protect source identities, we use mythical creature names:
 | Internal ID    | Display Name | Description                     |
 | -------------- | ------------ | ------------------------------- |
 | `mangadex`     | Phoenix      | Community-driven, official API  |
-| `mangapill`    | Griffin      | Alternative source via Consumet |
+| `mangapill`    | Griffin      | Alternative source, first-party scraper |
 | `comick`       | Sphinx       | High-quality scans (future)     |
 | `mangakakalot` | Hydra        | Multi-language support (future) |
 
@@ -195,10 +200,37 @@ type ProviderErrorCode =
 	| 'UNKNOWN'; // Unexpected error
 ```
 
+## Scraper Base Infrastructure
+
+Scraper-based providers (like MangaPill) extend the `ScraperBase` class in `src/providers/base/scraper-base.ts`:
+
+- **`fetchPage(url)`** — Fetches HTML and returns a cheerio API for parsing
+- **`parseDate(raw)`** — Handles ISO dates, YYYY-MM-DD, and relative dates like "3 hours ago"
+- **`createError(code, message)`** — Creates standardized `ProviderError` objects
+
+A `RateLimiter` (token-bucket) in `src/providers/base/rate-limiter.ts` prevents hitting upstream rate limits.
+
+### Adding a New Scraper Provider
+
+1. Create a selectors file (`selectors.ts`) with CSS selectors for each page type
+2. Create a provider file (`provider.ts`) extending `ScraperBase`
+3. Register in `src/providers/index.ts` and add a display alias
+
+## Timestamp-Based Sorting
+
+The aggregator sorts browse results by `updatedAt` timestamp after deduplication:
+
+- MangaDex provides `updatedAt` from its API response
+- MangaPill extracts timestamps from the recent chapters page
+- Items without timestamps sort to the end
+- During deduplication, the most recent `updatedAt` from any source is preserved
+
 ## Future Improvements
 
 - [x] Multi-source discovery APIs
 - [x] Fuzzy deduplication with romanization normalization
+- [x] First-party scraper architecture (replacing Consumet)
+- [x] Timestamp-based sorting for consistent "latest" ordering
 - [ ] Add more providers (ComicK, MangaKakalot)
 - [ ] Provider health monitoring dashboard
 - [ ] Automatic failover between providers

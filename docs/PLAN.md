@@ -2,7 +2,7 @@
 
 Living document tracking the current state, completed work, upcoming features, and design decisions for Tanso. Updated every time the codebase changes.
 
-**Last updated:** February 2026
+**Last updated:** March 2026
 
 ---
 
@@ -20,7 +20,7 @@ Living document tracking the current state, completed work, upcoming features, a
 
 **Phase:** MVP + Full-Featured Client (no database, no authentication)
 
-The application is a fully functional manga reader powered by MangaDex, AniList, and MangaPill (via @consumet/extensions). Users can discover manga through trending/popular/latest feeds, filter by genre/theme/demographic/content rating, search by title with typeahead suggestions, view manga detail pages with enriched metadata and alternate titles, choose from multiple chapter sources, and read chapters in either paged mode or vertical scroll (webtoon) mode with keyboard navigation, quality selection, and automatic progress tracking.
+The application is a fully functional manga reader powered by MangaDex, AniList, and MangaPill (first-party scraper). Users can discover manga through trending/popular/latest feeds, filter by genre/theme/demographic/content rating, search by title with typeahead suggestions, view manga detail pages with enriched metadata and alternate titles, choose from multiple chapter sources, and read chapters in either paged mode or vertical scroll (webtoon) mode with keyboard navigation, quality selection, and automatic progress tracking.
 
 **What works:**
 
@@ -76,7 +76,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 | Styling           | Tailwind CSS v4 + shadcn/ui      | 4.2.0   |
 | Theming           | next-themes                      | 0.4.6   |
 | Primary API       | MangaDex REST API                | v5      |
-| Secondary Sources | @consumet/extensions (MangaPill) | 1.8.8   |
+| Secondary Sources | MangaPill (first-party, cheerio) | 1.2.0   |
 | Metadata API      | AniList GraphQL API              | v2      |
 | Package Manager   | pnpm                             | 10.22.0 |
 | Runtime           | Node.js                          | 18.17+  |
@@ -281,6 +281,7 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 
 ### Milestone 22: Provider System Consolidation
 
+
 - **Unified `MangaProvider` interface** — Replaced legacy `ContentProvider` with a standardized interface in `src/providers/types.ts` supporting search, browse, chapters, pages, and health checks.
 - **Provider Registry** — New registry in `src/providers/index.ts` with `getAllProviders()`, `getProvider()`, `getDisplayName()` functions.
 - **Source Aliases (Mythical Theme)** — Display names to protect source identities: Phoenix (MangaDex), Griffin (MangaPill).
@@ -303,6 +304,15 @@ The application is a fully functional manga reader powered by MangaDex, AniList,
 - **`toMangaShape()` Mapper** — Created `src/lib/aggregator-utils.ts` to transform `AggregatedSearchResult` into `Manga`-compatible shape for the frontend, preserving `sources` and `displaySource` fields.
 - **Source Badge UI** — Updated `MangaGrid` to pass `displaySource` and `sources` props to `MangaCard`. Source badges now display correctly on home, search, and latest pages.
 - **Proxy Image Updates** — Added MangaPill domain suffixes to `ALLOWED_DOMAIN_SUFFIXES` in the image proxy route.
+
+### Milestone 24: First-Party Scraping + Timestamp Sorting
+
+- **Removed `@consumet/extensions` dependency** — Replaced with direct HTML scraping using cheerio, eliminating ~60 transitive dependencies and giving full control over parsing.
+- **Scraper Base Infrastructure** — Created `src/providers/base/scraper-base.ts` (shared base class with `fetchPage()`, `parseDate()`, `createError()`) and `rate-limiter.ts` (token-bucket rate limiter). Future scrapers extend `ScraperBase`.
+- **MangaPill First-Party Scraper** — Rewrote `src/providers/mangapill/provider.ts` to scrape MangaPill directly using cheerio. CSS selectors centralized in `selectors.ts` for easy updates when the site changes.
+- **MangaPill Browse Support** — Added `browse()` method that scrapes `/chapters` for recently released chapters with timestamps. MangaPill now supports the `browse` feature, contributing to aggregated latest/trending/popular feeds.
+- **Timestamp-Based Sorting** — Added `updatedAt` field to `MangaSearchResult` and `Manga` types. MangaDex extracts `updatedAt` from API response; MangaPill extracts from `<time-ago>` elements. Aggregator sorts by `updatedAt` descending after deduplication, preserving the most recent timestamp during merging. Items without timestamps sort to the end.
+- **Fixed "Latest" Ordering** — Previously, the Latest page showed inconsistent ordering because results from multiple providers were combined without sorting. Now results are explicitly sorted by their last update timestamp, with most recently updated manga appearing first.
 
 ---
 
