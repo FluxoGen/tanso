@@ -250,19 +250,23 @@ function ReaderContent({
 				return;
 			}
 
+			// Chapter navigation with brackets or shift+arrows (works in all modes)
+			if ((e.key === ']' || (e.shiftKey && e.key === 'ArrowRight')) && nextChapterUrl) {
+				window.location.href = nextChapterUrl;
+				return;
+			}
+			if ((e.key === '[' || (e.shiftKey && e.key === 'ArrowLeft')) && prevChapterUrl) {
+				window.location.href = prevChapterUrl;
+				return;
+			}
+
+			// Page navigation only in paged mode
 			if (readingMode !== 'paged') return;
 
 			if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
 				goTo(currentPage + 1);
 			} else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
 				goTo(currentPage - 1);
-			}
-			// Chapter navigation with brackets or shift+arrows
-			if ((e.key === ']' || (e.shiftKey && e.key === 'ArrowRight')) && nextChapterUrl) {
-				window.location.href = nextChapterUrl;
-			}
-			if ((e.key === '[' || (e.shiftKey && e.key === 'ArrowLeft')) && prevChapterUrl) {
-				window.location.href = prevChapterUrl;
 			}
 		};
 		window.addEventListener('keydown', handleKey);

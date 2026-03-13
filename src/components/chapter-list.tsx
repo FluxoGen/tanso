@@ -1,15 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { buildReadUrl } from '@/lib/read-urls';
 import { getReadChapters, getProgress } from '@/lib/storage';
 import { ErrorState } from '@/components/error-state';
-import { Check, BookOpen } from 'lucide-react';
+import { Check, BookOpen, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Chapter, MangaSource } from '@/types/manga';
+
+interface SourceGroup {
+	provider: string;
+	displayName: string;
+	primary: MangaSource;
+	variations: MangaSource[];
+}
 
 interface ChapterListProps {
 	mangaId: string;
@@ -31,6 +38,10 @@ export function ChapterList({
 	anilistId,
 }: ChapterListProps) {
 	const [sources, setSources] = useState<MangaSource[]>([]);
+	const [expandedProviders, setExpandedProviders] = useState<Set<string>>(new Set());
+
+	// Derive source groups from sources (auto-updates when sources change)
+	const sourceGroups = useMemo(() => groupSourcesByProvider(sources), [sources]);
 	const [selectedSource, setSelectedSource] = useState<MangaSource | null>(null);
 	const [chapters, setChapters] = useState<Chapter[]>([]);
 	const [total, setTotal] = useState(0);
@@ -150,7 +161,7 @@ export function ChapterList({
 					setTotal(fetchedTotal);
 
 					const realCount = source.provider === 'mangadex' ? fetchedTotal : data.length;
-					if (realCount > 0 && source.chapterCount === 0) {
+					if (realCount > 0) {
 						setSources((prev) =>
 							prev.map((s) =>
 								s.provider === source.provider && s.sourceId === source.sourceId
@@ -170,11 +181,17 @@ export function ChapterList({
 		[mangaId]
 	);
 
+	// Use stable identifiers to avoid re-fetching when object reference changes
+	const selectedSourceKey = selectedSource
+		? `${selectedSource.provider}:${selectedSource.sourceId}`
+		: null;
+
 	useEffect(() => {
 		if (selectedSource) {
 			fetchChapters(selectedSource, page);
 		}
-	}, [selectedSource, page, fetchChapters]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [selectedSourceKey, page, fetchChapters]);
 
 	// Reset page when switching source
 	const handleSourceChange = (source: MangaSource) => {
@@ -191,24 +208,73 @@ export function ChapterList({
 		? Math.ceil(total / CHAPTERS_PER_PAGE)
 		: Math.ceil(chapters.length / CHAPTERS_PER_PAGE);
 
+	const toggleProviderExpanded = (provider: string) => {
+		setExpandedProviders((prev) => {
+			const next = new Set(prev);
+			if (next.has(provider)) {
+				next.delete(provider);
+			} else {
+				next.add(provider);
+			}
+			return next;
+		});
+	};
+
 	return (
 		<div className="space-y-4">
 			{/* Source tabs */}
 			<div className="flex flex-wrap items-center gap-2">
-				{sources.map((s) => (
-					<button
-						key={`${s.provider}:${s.sourceId}`}
-						onClick={() => handleSourceChange(s)}
-						className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-							selectedSource?.provider === s.provider && selectedSource?.sourceId === s.sourceId
-								? 'bg-primary text-primary-foreground'
-								: 'bg-muted text-muted-foreground hover:bg-accent'
-						}`}
-					>
-						<span>{s.displayName}</span>
-						<span className="opacity-75">({s.chapterCount || '?'})</span>
-					</button>
-				))}
+				{sourceGroups.map((group) => {
+					const isExpanded = expandedProviders.has(group.provider);
+					const hasVariations = group.variations.length > 0;
+					const isPrimarySelected =
+						selectedSource?.provider === group.provider &&
+						selectedSource?.sourceId === group.primary.sourceId;
+					const isProviderSelected = selectedSource?.provider === group.provider;
+					const selectedVariation =
+						isProviderSelected && !isPrimarySelected
+							? [group.primary, ...group.variations].find(
+									(s) => s.sourceId === selectedSource?.sourceId
+								)
+							: null;
+
+					return (
+						<div key={group.provider} className="flex items-center gap-1">
+							<button
+								onClick={() => handleSourceChange(group.primary)}
+								className={cn(
+									'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors',
+									isPrimarySelected
+										? 'bg-primary text-primary-foreground'
+										: selectedVariation
+											? 'bg-primary/20 text-primary hover:bg-primary/30'
+											: 'bg-muted text-muted-foreground hover:bg-accent'
+								)}
+							>
+								<span>{group.displayName}</span>
+								<span className="opacity-75">
+									({(selectedVariation ?? group.primary).chapterCount || '?'})
+								</span>
+							</button>
+							{hasVariations && (
+								<button
+									onClick={() => toggleProviderExpanded(group.provider)}
+									className={cn(
+										'inline-flex items-center justify-center rounded-full p-1.5 text-sm transition-colors',
+										isExpanded
+											? 'bg-accent text-accent-foreground'
+											: 'bg-muted text-muted-foreground hover:bg-accent'
+									)}
+									title={`${group.variations.length} other version${group.variations.length > 1 ? 's' : ''} available`}
+								>
+									<ChevronDown
+										className={cn('h-3.5 w-3.5 transition-transform', isExpanded && 'rotate-180')}
+									/>
+								</button>
+							)}
+						</div>
+					);
+				})}
 
 				{sourcesLoading && (
 					<div className="flex items-center gap-2">
@@ -218,7 +284,48 @@ export function ChapterList({
 				)}
 			</div>
 
-			{!sourcesLoading && sources.length <= 1 && sources[0]?.provider === 'mangadex' && (
+			{/* Expanded variations */}
+			{sourceGroups.map((group) => {
+				if (!expandedProviders.has(group.provider) || group.variations.length === 0) return null;
+
+				return (
+					<div key={`${group.provider}-variations`} className="bg-muted/50 rounded-lg p-3">
+						<p className="text-muted-foreground mb-2 text-xs">{group.displayName} versions:</p>
+						<div className="space-y-1.5">
+							{[group.primary, ...group.variations].map((s) => {
+								const isSelected =
+									selectedSource?.provider === s.provider &&
+									selectedSource?.sourceId === s.sourceId;
+								const label = getVariationLabel(s.matchedTitle);
+								return (
+									<button
+										key={`${s.provider}:${s.sourceId}`}
+										onClick={() => handleSourceChange(s)}
+										className={cn(
+											'flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors',
+											isSelected
+												? 'bg-primary text-primary-foreground'
+												: 'bg-background hover:bg-accent'
+										)}
+									>
+										<span className="font-medium">{label}</span>
+										<span
+											className={cn(
+												'shrink-0 text-xs',
+												isSelected ? 'text-primary-foreground/70' : 'text-muted-foreground'
+											)}
+										>
+											{s.chapterCount || '?'} ch
+										</span>
+									</button>
+								);
+							})}
+						</div>
+					</div>
+				);
+			})}
+
+			{!sourcesLoading && sourceGroups.length <= 1 && sourceGroups[0]?.provider === 'mangadex' && (
 				<p className="text-muted-foreground text-xs">Only MangaDex available for this title.</p>
 			)}
 
@@ -432,4 +539,68 @@ function pickDefaultSource(sources: MangaSource[], lastChapter: string | null): 
 	});
 
 	return sorted[0] ?? sources[0];
+}
+
+function getVariationLabel(title: string): string {
+	// If title has multiple parts separated by comma, take the first meaningful one
+	const parts = title.split(/[,،]/).map((p) => p.trim());
+	let label = parts[0];
+
+	// Clean up common suffixes/prefixes that make titles confusing
+	label = label
+		.replace(/\s*-\s*Digital Colored Comics$/i, ' (Colored)')
+		.replace(/\s*:\s*Buddy Stories$/i, ': Buddy Stories')
+		.replace(/\s*\(Full Color\)$/i, ' (Colored)')
+		.replace(/\s*\(Official\)$/i, '')
+		.replace(/\s*\(Digital\)$/i, '');
+
+	// If label starts with numbers like "17-21:" or "22-26:", it's likely an author collection
+	if (/^\d+-\d+:/.test(label)) {
+		// Try to find a better name from the parts
+		const betterName = parts.find(
+			(p) => !p.includes('Fujimoto') && !p.includes('Tanpenshuu') && p.length > 3
+		);
+		if (betterName) {
+			label = betterName.trim();
+		}
+	}
+
+	return label || title;
+}
+
+function groupSourcesByProvider(sources: MangaSource[]): SourceGroup[] {
+	const providerMap = new Map<string, MangaSource[]>();
+
+	for (const source of sources) {
+		const existing = providerMap.get(source.provider) ?? [];
+		existing.push(source);
+		providerMap.set(source.provider, existing);
+	}
+
+	const groups: SourceGroup[] = [];
+
+	for (const [provider, providerSources] of providerMap) {
+		// Sort by chapter count (desc), then confidence (desc)
+		const sorted = [...providerSources].sort((a, b) => {
+			if (b.chapterCount !== a.chapterCount) return b.chapterCount - a.chapterCount;
+			return b.confidence - a.confidence;
+		});
+
+		const primary = sorted[0];
+		const variations = sorted.slice(1);
+
+		groups.push({
+			provider,
+			displayName: primary.displayName,
+			primary,
+			variations,
+		});
+	}
+
+	// Sort groups: MangaDex first, then by primary's confidence
+	return groups.sort((a, b) => {
+		if (a.provider === 'mangadex') return -1;
+		if (b.provider === 'mangadex') return 1;
+		return b.primary.confidence - a.primary.confidence;
+	});
 }

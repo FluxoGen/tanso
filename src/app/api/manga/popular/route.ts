@@ -1,11 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPopularManga } from '@/lib/mangadex';
+import { browseAll, getAllProviders } from '@/providers';
+import { getPopularManga } from '@/providers/mangadex';
+import { toMangaShape } from '@/lib/aggregator-utils';
 
 export async function GET(request: NextRequest) {
 	try {
 		const params = request.nextUrl.searchParams;
 		const tags = params.getAll('tags');
 		const ratings = params.getAll('ratings');
+		const multiSource = params.get('multiSource') !== 'false';
+
+		if (multiSource) {
+			const providers = getAllProviders().filter((p) => p.info.features.includes('browse'));
+
+			const result = await browseAll(
+				{
+					sort: 'popular',
+					page: 1,
+					genres: tags.length ? tags : undefined,
+					contentRatings: ratings.length ? ratings : undefined,
+				},
+				{
+					providers,
+					timeout: 8000,
+					enrichWithAniList: false,
+				}
+			);
+
+			return NextResponse.json({
+				data: result.data.slice(0, 20).map(toMangaShape),
+				sources: [...new Set(result.data.flatMap((m) => m.sources))],
+			});
+		}
 
 		const data = await getPopularManga(
 			20,
@@ -13,7 +39,8 @@ export async function GET(request: NextRequest) {
 			ratings.length ? ratings : undefined
 		);
 		return NextResponse.json({ data });
-	} catch {
+	} catch (error) {
+		console.error('[API] Popular error:', error);
 		return NextResponse.json({ error: 'Failed to fetch popular manga' }, { status: 500 });
 	}
 }

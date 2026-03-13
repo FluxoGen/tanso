@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchManga } from '@/lib/mangadex';
-import { searchAniListManga } from '@/lib/anilist';
+import { searchManga } from '@/providers/mangadex';
+import { searchAniListManga } from '@/providers/anilist';
+import { searchAll, getAllProviders } from '@/providers';
+import { toMangaShape } from '@/lib/aggregator-utils';
 import type { Manga, PaginatedResponse } from '@/types/manga';
 
 function mergeResults(
@@ -25,12 +27,39 @@ export async function GET(request: NextRequest) {
 		const page = parseInt(searchParams.get('page') ?? '1', 10);
 		const tags = searchParams.getAll('tags');
 		const ratings = searchParams.getAll('ratings');
+		const multiSource = searchParams.get('multiSource') === 'true';
 		const limit = 20;
 		const offset = (page - 1) * limit;
 		const tagFilters = tags.length ? tags : undefined;
-
 		const contentRatings = ratings.length ? ratings : undefined;
 
+		// Multi-source search mode
+		if (multiSource && q) {
+			const providers = getAllProviders().filter((p) => p.info.features.includes('search'));
+
+			const result = await searchAll(
+				{
+					query: q,
+					page,
+					genres: tagFilters,
+				},
+				{
+					providers,
+					timeout: 10000,
+					enrichWithAniList: true,
+				}
+			);
+
+			return NextResponse.json({
+				data: result.data.slice(0, limit).map(toMangaShape),
+				total: result.totalItems ?? result.data.length,
+				offset,
+				limit,
+				sources: [...new Set(result.data.flatMap((m) => m.sources))],
+			});
+		}
+
+		// Default: MangaDex-first with AniList title enrichment
 		if (!q) {
 			const result = await searchManga('', {
 				limit,
@@ -75,7 +104,8 @@ export async function GET(request: NextRequest) {
 		}
 
 		return NextResponse.json(mdResult);
-	} catch {
+	} catch (error) {
+		console.error('[API] Search error:', error);
 		return NextResponse.json({ error: 'Failed to search manga' }, { status: 500 });
 	}
 }

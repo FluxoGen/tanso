@@ -24,69 +24,86 @@ graph TD
         HomePage["/ (Home Page)"]
         SearchPage["/search (Search Page)"]
         MangaDetail["/manga/[id] (Detail Page)"]
-        Reader["/read/[chapterId] (MangaDex Reader)"]
-        ExtReader["/read/ext (Consumet Reader)"]
+        Reader["/read/[chapterId] (Reader)"]
     end
 
-    subgraph nextjs [Next.js Server - API Proxy Layer]
-        MangaRoutes["/api/manga/* routes"]
+    subgraph nextjs [Next.js Server - API Layer]
+        SearchRoute["/api/search"]
+        SuggestRoute["/api/suggest"]
+        TrendingRoute["/api/manga/trending"]
+        PopularRoute["/api/manga/popular"]
+        LatestRoute["/api/manga/latest"]
         SourcesRoute["/api/manga/[id]/sources"]
-        ChapterRoutes["/api/chapter/* routes"]
+        ChapterRoutes["/api/chapter/*"]
         ResolveRoute["/api/chapter/resolve"]
-        SearchRoute["/api/search route"]
-        TagsRoute["/api/manga/tags route"]
         ProxyRoute["/api/proxy-image"]
     end
 
-    subgraph registry [Provider Registry]
-        ProvReg["getProvider/listProviders"]
-        MdProv["MangaDexProvider"]
-        MrProv["MangaPillProvider"]
+    subgraph providers [Provider System - src/providers/]
+        Aggregator["Aggregator\n(searchAll, browseAll)"]
+        Dedup["Deduplication\n(fuzzy matching)"]
+
+        subgraph providerInstances [Providers]
+            MdProv["MangaDex\n(Phoenix)"]
+            MpProv["MangaPill\n(Griffin)"]
+        end
     end
 
     subgraph cacheLayer [In-Memory Cache]
-        SrcCache["Source cache - 30 min TTL"]
-        ChCache["Chapter cache - 1 hr TTL"]
+        SrcCache["Source cache\n30 min TTL"]
+        ChCache["Chapter cache\n1 hr TTL"]
     end
 
     subgraph external [External APIs]
-        MangaDex["MangaDex REST API"]
-        AniList["AniList GraphQL API"]
+        MangaDex["MangaDex API"]
+        MangaPill["mangapill.com"]
+        AniList["AniList GraphQL"]
         MangaDexCDN["MangaDex@Home CDN"]
-        MangaPillSite["mangapill.com"]
     end
 
-    HomePage --> MangaRoutes
-    HomePage --> TagsRoute
+    %% Client to API routes
+    HomePage --> TrendingRoute
+    HomePage --> PopularRoute
+    HomePage --> LatestRoute
     SearchPage --> SearchRoute
-    SearchPage --> TagsRoute
-    MangaDetail --> MangaRoutes
+    SearchPage --> SuggestRoute
     MangaDetail --> SourcesRoute
     Reader --> ChapterRoutes
-    ExtReader --> ResolveRoute
+    Reader --> ResolveRoute
 
-    SourcesRoute --> ProvReg
-    ChapterRoutes --> ProvReg
-    ResolveRoute --> ProvReg
+    %% Multi-source discovery routes use Aggregator
+    SearchRoute --> Aggregator
+    SuggestRoute --> Aggregator
+    TrendingRoute --> Aggregator
+    PopularRoute --> Aggregator
+    LatestRoute --> Aggregator
 
-    ProvReg --> MdProv
-    ProvReg --> MrProv
+    %% Aggregator queries all providers
+    Aggregator --> MdProv
+    Aggregator --> MpProv
+    Aggregator --> Dedup
 
+    %% Source discovery and chapter resolution
+    SourcesRoute --> MdProv
+    SourcesRoute --> MpProv
+    ChapterRoutes --> MdProv
+    ResolveRoute --> MpProv
+
+    %% Provider to external API connections
     MdProv --> MangaDex
-    MrProv --> MangaPillSite
+    MpProv --> MangaPill
 
-    MangaRoutes --> MangaDex
-    MangaRoutes --> AniList
-    SearchRoute --> MangaDex
-    SearchRoute -.->|"fallback for alt titles"| AniList
-    TagsRoute --> MangaDex
+    %% AniList enrichment
+    Aggregator -.->|"metadata enrichment"| AniList
 
+    %% Caching
     SourcesRoute --> SrcCache
     ChapterRoutes --> ChCache
 
-    Reader -.->|"direct image loads"| MangaDexCDN
-    ExtReader -.->|"images via proxy"| ProxyRoute
-    ProxyRoute -.->|"fetches with Referer header"| MangaPillSite
+    %% Image delivery
+    Reader -.->|"direct CDN"| MangaDexCDN
+    Reader -.->|"via proxy"| ProxyRoute
+    ProxyRoute --> MangaPill
 ```
 
 ### Explanation
@@ -102,12 +119,12 @@ The application follows a **multi-tier architecture**:
    - **Caching** — In-memory LRU caches for source discovery and chapter lists prevent redundant API calls.
    - **Security** — The image proxy route validates domains and referers to prevent SSRF attacks.
 
-3. **Provider Registry:** An abstraction layer (`src/lib/providers/`) that wraps content sources behind a `ContentProvider` interface. Currently includes MangaDex and MangaPill. Adding new providers requires one file + one `registerProvider()` call.
+3. **Provider System:** A unified provider architecture (`src/providers/`) that wraps content sources behind a `MangaProvider` interface. Currently includes MangaDex (Phoenix) and MangaPill (Griffin). An aggregator layer queries multiple providers in parallel with deduplication. A compatibility layer (`compat.ts`) bridges to the legacy `ContentProvider` interface.
 
-4. **External APIs:** Three data sources:
-   - **MangaDex** — Primary source for manga content: titles, chapters, tags, cover images, and chapter page images.
+4. **External APIs:** Multiple data sources:
+   - **MangaDex (Phoenix)** — Primary source for manga content: titles, chapters, tags, cover images, and chapter page images.
    - **AniList** — Metadata enrichment: community scores, descriptions, banner images, recommendations.
-   - **MangaPill** (via `@consumet/extensions`) — Secondary chapter source for manga with DMCA-removed chapters on MangaDex. Images are routed through `/api/proxy-image` because MangaPill's CDN requires a Referer header.
+   - **MangaPill (Griffin)** (via `@consumet/extensions`) — Alternative chapter source. Images are routed through `/api/proxy-image` because MangaPill's CDN requires a Referer header.
 
 ### Why proxy instead of calling APIs directly from the client?
 
@@ -157,6 +174,76 @@ sequenceDiagram
 5. The React component renders the merged data: MangaDex cover image, AniList banner image, MangaDex genres/tags, AniList score, and the best available description (AniList preferred, MangaDex as fallback).
 
 This pattern means the client makes **one** HTTP request per page, and the server handles all API orchestration.
+
+### Multi-Source Search Flow
+
+This diagram shows how the aggregator queries multiple providers in parallel for search and browse operations.
+
+```mermaid
+sequenceDiagram
+    participant U as User Browser
+    participant FE as Search Page
+    participant API as /api/search
+    participant AGG as Aggregator
+    participant MD as MangaDex (Phoenix)
+    participant MP as MangaPill (Griffin)
+    participant AL as AniList
+
+    U->>FE: Types "one piece"
+    FE->>API: GET /api/search?q=one+piece&multiSource=true
+
+    API->>AGG: searchAll({ query: "one piece" })
+
+    par Query all providers in parallel
+        AGG->>MD: search("one piece")
+        AGG->>MP: search("one piece")
+    end
+
+    MD-->>AGG: [MangaDex results]
+    MP-->>AGG: [MangaPill results]
+
+    AGG->>AGG: deduplicateManga()<br/>• Normalize titles (romanization)<br/>• Fuzzy match (Levenshtein 0.85)<br/>• Merge sources per manga
+
+    opt AniList enrichment enabled
+        AGG->>AL: searchAniListManga("one piece")
+        AL-->>AGG: Metadata (score, banner)
+    end
+
+    AGG-->>API: Deduplicated results with sources[]
+    API-->>FE: { data: [...], sources: ["mangadex", "mangapill"] }
+    FE->>U: Display results with source badges
+```
+
+### Provider-Aware Detail Flow
+
+This diagram shows how composite IDs are parsed and used to dispatch to the correct provider when viewing manga details.
+
+```mermaid
+sequenceDiagram
+    participant U as User Browser
+    participant FE as Detail Page
+    participant API as /api/manga/[id]
+    participant PID as parseProviderId()
+    participant MD as MangaDex API
+    participant MP as MangaPill
+    participant AL as AniList GraphQL
+
+    U->>FE: Navigates to /manga/mangapill:slug-123/title
+    FE->>API: GET /api/manga/mangapill:slug-123
+
+    API->>PID: parseProviderId("mangapill:slug-123")
+    PID-->>API: { provider: "mangapill", sourceId: "slug-123" }
+
+    API->>MP: getMangaDetails("slug-123")
+    MP-->>API: Manga details (title, cover, status, etc.)
+    API->>API: Normalize to Manga type
+    API->>AL: searchAniListManga(title)
+    AL-->>API: AniList metadata
+
+    API-->>FE: { manga: Manga, anilist }
+    FE->>FE: resolveMangaCover(manga)
+    FE->>U: Detail page rendered
+```
 
 ---
 
@@ -226,7 +313,7 @@ sequenceDiagram
     participant MP as MangaPill
     participant Proxy as /api/proxy-image
 
-    alt MangaDex chapter
+    alt MangaDex chapter (Phoenix)
         Client->>API: GET /api/chapter/ch-uuid
         API->>MD: GET /at-home/server/ch-uuid
         MD-->>API: { baseUrl, chapter: { hash, data[], dataSaver[] } }
@@ -234,7 +321,8 @@ sequenceDiagram
         Note over Client: Constructs URL:<br/>baseUrl + /data/ + hash + /filename.jpg
         Client->>CDN: GET .../page1.jpg
         CDN-->>Client: Image binary
-    else MangaPill chapter (proxy required)
+
+    else MangaPill chapter (Griffin) - proxy required
         Client->>Resolve: GET /api/chapter/resolve?source=mangapill&chapterId=...
         Resolve->>MP: fetchChapterPages(chapterId)
         MP-->>Resolve: [{ img, page }]
@@ -251,20 +339,20 @@ sequenceDiagram
 
 Chapter images are delivered through different pipelines depending on the source:
 
-**MangaDex chapters** use the **MangaDex@Home** network, a volunteer-run CDN:
+**MangaDex chapters (Phoenix)** use the **MangaDex@Home** network, a volunteer-run CDN:
 
 1. The API route calls `GET /at-home/server/{chapterId}` which returns `baseUrl`, `hash`, `data[]` (original filenames), `dataSaver[]` (compressed).
 2. The client builds full image URLs: `{baseUrl}/data/{hash}/{filename}` (HQ) or `{baseUrl}/data-saver/{hash}/{filename}` (Lite).
 3. Base URL is valid ~15 minutes.
 
-**MangaPill chapters** (via `@consumet/extensions`) require server-side proxying:
+**MangaPill chapters (Griffin)** (via `@consumet/extensions`) require server-side proxying:
 
 1. The API route calls `provider.getChapterPages(chapterId)` which scrapes the source.
 2. The response contains `pages[]` with `img` (CDN URL) and `page` (number).
 3. MangaPill's CDN (`cdn.readdetectiveconan.com`) returns 403 without a `Referer: https://mangapill.com/` header — browsers don't send this header when loading from `localhost`.
-4. The reader detects `PROXIED_SOURCES` (currently `["mangapill"]`) and routes image URLs through `/api/proxy-image?url=...&source=mangapill`, which adds the required Referer header server-side.
+4. The reader detects `PROXIED_SOURCES` (currently `["mangapill"]`) and routes image URLs through `/api/proxy-image?url=...&source=...`, which adds the required Referer header server-side.
 
-In **paged mode**, both pipelines preload the next 3 pages using `new Image()` objects.
+In **paged mode**, all pipelines preload the next 3 pages using `new Image()` objects.
 
 **Cover images** follow a simpler pattern with a stable CDN:
 
@@ -273,6 +361,8 @@ https://uploads.mangadex.org/covers/{mangaId}/{coverFileName}.256.jpg
 ```
 
 Available sizes: `.256.jpg` (thumbnail), `.512.jpg` (medium), or no suffix (original).
+
+Cover images now use a generic `resolveMangaCover()` function that checks `manga.coverUrl` first (used by MangaPill and other non-MangaDex providers), then falls back to MangaDex CDN via `coverFileName`.
 
 ---
 
@@ -342,18 +432,29 @@ tanso/
 │   │   ├── useLibrary.ts              # Hook for managing library bookmarks with status
 │   │   └── useHistory.ts              # Hook for tracking reading history
 │   │
+│   ├── providers/                     # Unified provider system
+│   │   ├── types.ts                   # MangaProvider interface
+│   │   ├── index.ts                   # Provider registry: getAllProviders, getProvider
+│   │   ├── source-aliases.ts          # Display names (Phoenix, Griffin)
+│   │   ├── aggregator.ts              # Multi-source queries with deduplication
+│   │   ├── compat.ts                  # Legacy ContentProvider compatibility layer
+│   │   ├── mangadex/                  # Primary source (Phoenix)
+│   │   │   ├── api-client.ts         # MangaDex REST API client
+│   │   │   └── index.ts              # Exports
+│   │   ├── mangapill/                 # Consumet-based (Griffin)
+│   │   │   └── provider.ts           # MangaProvider wrapper
+│   │   └── anilist/                   # Metadata enrichment
+│   │       └── client.ts             # AniList GraphQL client
+│   │
 │   ├── lib/
-│   │   ├── providers/                 # Provider registry (extensible for anime/LN)
-│   │   │   ├── types.ts              # ContentProvider interface, ProviderSearchResult
-│   │   │   ├── index.ts              # Registry: registerProvider, getProvider, listProviders
-│   │   │   ├── mangadex.ts           # MangaDex ContentProvider wrapper
-│   │   │   └── mangareader.ts        # MangaPill ContentProvider wrapper (@consumet/extensions)
-│   │   ├── mangadex.ts                # MangaDex API client — all fetch + normalize functions
-│   │   ├── anilist.ts                 # AniList GraphQL client — metadata enrichment
+│   │   ├── providers/                 # Legacy provider registry (uses compat.ts)
+│   │   ├── provider-id.ts             # Composite ID parsing/building (parseProviderId, buildProviderId)
+│   │   ├── cover-utils.ts             # Generic cover resolution (resolveMangaCover)
+│   │   ├── aggregator-utils.ts        # Aggregator-to-Manga shape mapping (toMangaShape)
 │   │   ├── cache.ts                   # TTLCache for source discovery and chapter lists
 │   │   ├── storage.ts                 # LocalStorage utilities for progress, history, library
 │   │   ├── fetch-utils.ts             # fetchWithRetry helper with exponential backoff
-│   │   ├── matching.ts                # Title scoring algorithm for cross-provider matching
+│   │   ├── matching.ts                # Title scoring, romanization normalization, Levenshtein
 │   │   └── utils.ts                   # Tailwind CSS utility (cn function from shadcn)
 │   │
 │   └── types/
@@ -537,31 +638,41 @@ Three React hooks wrap the storage layer with state management:
 
 ## 8. API Route Map
 
-| Route                      | Method | Query Parameters                                                                       | Upstream API                                                  | Description                                                                                                                            |
-| -------------------------- | ------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/manga/trending`      | GET    | `tags`, `ratings` (repeatable)                                                         | MangaDex `GET /manga` ordered by `rating desc`                | Top-rated manga, optionally filtered by genre tags and content ratings                                                                 |
-| `/api/manga/popular`       | GET    | `tags`, `ratings` (repeatable)                                                         | MangaDex `GET /manga` ordered by `followedCount desc`         | Most-followed manga, optionally filtered by genre tags and content ratings                                                             |
-| `/api/manga/latest`        | GET    | `tags`, `ratings`, `limit`, `offset` (repeatable)                                      | MangaDex `GET /manga` ordered by `latestUploadedChapter desc` | Recently updated manga with pagination and filters                                                                                     |
-| `/api/manga/tags`          | GET    | —                                                                                      | MangaDex `GET /manga/tag`                                     | Full list of all genre/theme tags (cached in memory)                                                                                   |
-| `/api/manga/[id]`          | GET    | —                                                                                      | MangaDex `GET /manga/{id}` + AniList `POST /graphql`          | Manga details merged with AniList metadata (score, banner, description)                                                                |
-| `/api/manga/[id]/chapters` | GET    | `source`, `sourceId`, `page`, `lang`, `chapterId`                                      | Provider registry                                             | Multi-source chapter list with chapter navigation (prev/next). MangaDex: server pagination. Others: full list, cached.                 |
-| `/api/manga/[id]/sources`  | GET    | `title` (required), `lastChapter`, `anilistId`, `status`, `altTitles` (pipe-separated) | Provider registry + scoring                                   | Discovers available sources for a manga. Tries alternate titles as fallback if primary title yields no matches. Results cached 30 min. |
-| `/api/chapter/[id]`        | GET    | —                                                                                      | MangaDex `GET /at-home/server/{id}`                           | MangaDex chapter page images (ChapterPagesResponse, mangadex variant)                                                                  |
-| `/api/chapter/resolve`     | GET    | `source`, `chapterId`                                                                  | Provider registry                                             | Consumet chapter page images (ChapterPagesResponse, external variant)                                                                  |
-| `/api/suggest`             | GET    | `q` (query, min 2 chars)                                                               | MangaDex `GET /manga`                                         | Search suggestions: returns top 6 results with cover, author, year for typeahead                                                       |
-| `/api/proxy-image`         | GET    | `url`, `source`                                                                        | Direct fetch with domain whitelist                            | Secured image proxy. HTTPS-only, rate limited, server-side referer.                                                                    |
-| `/api/search`              | GET    | `q` (query), `page` (default 1), `tags` (repeatable), `ratings` (repeatable)           | MangaDex `GET /manga` + AniList `POST /graphql` (fallback)    | Search manga by title with optional tag/rating filtering. Falls back to AniList for alt titles.                                        |
+| Route                      | Method | Query Parameters                                                                       | Upstream Source                                     | Description                                                                                                                                                                                              |
+| -------------------------- | ------ | -------------------------------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/manga/trending`      | GET    | `tags`, `ratings`, `multiSource` (default: true)                                       | Aggregator → all providers                          | Top-rated manga from all sources with deduplication. Set `multiSource=false` for MangaDex-only.                                                                                                          |
+| `/api/manga/popular`       | GET    | `tags`, `ratings`, `multiSource` (default: true)                                       | Aggregator → all providers                          | Most popular manga from all sources with deduplication.                                                                                                                                                  |
+| `/api/manga/latest`        | GET    | `tags`, `ratings`, `limit`, `offset`, `multiSource` (default: true)                    | Aggregator → all providers                          | Recently updated manga from all sources with pagination.                                                                                                                                                 |
+| `/api/manga/tags`          | GET    | —                                                                                      | MangaDex `GET /manga/tag`                           | Full list of all genre/theme tags (cached in memory)                                                                                                                                                     |
+| `/api/manga/[id]`          | GET    | —                                                                                      | Provider registry (via `parseProviderId`) + AniList | Manga details merged with AniList metadata. Supports composite IDs (`provider:sourceId`) for any provider.                                                                                               |
+| `/api/manga/[id]/chapters` | GET    | `source`, `sourceId`, `page`, `lang`, `chapterId`                                      | Provider registry                                   | Multi-source chapter list with chapter navigation (prev/next). Defaults to provider from composite ID; override with `source`/`sourceId` params. MangaDex: server pagination. Others: full list, cached. |
+| `/api/manga/[id]/sources`  | GET    | `title` (required), `lastChapter`, `anilistId`, `status`, `altTitles` (pipe-separated) | Provider registry + scoring                         | Discovers available sources for a manga. Primary source determined by composite ID; other providers searched by title. Results cached 30 min.                                                            |
+| `/api/chapter/[id]`        | GET    | —                                                                                      | MangaDex `GET /at-home/server/{id}`                 | MangaDex chapter page images (ChapterPagesResponse, mangadex variant)                                                                                                                                    |
+| `/api/chapter/resolve`     | GET    | `source`, `chapterId`                                                                  | Provider registry (MangaPill)                       | External provider chapter pages.                                                                                                                                                                         |
+| `/api/suggest`             | GET    | `q` (query, min 2 chars), `multiSource` (default: false)                               | MangaDex or Aggregator                              | Search suggestions. Set `multiSource=true` to query all providers.                                                                                                                                       |
+| `/api/proxy-image`         | GET    | `url`, `source`                                                                        | Direct fetch with domain whitelist                  | Secured image proxy for MangaPill. HTTPS-only, rate limited, server-side referer.                                                                                                                        |
+| `/api/search`              | GET    | `q`, `page`, `tags`, `ratings`, `multiSource` (default: false)                         | MangaDex or Aggregator → all providers              | Search manga. Set `multiSource=true` for cross-provider search with deduplication.                                                                                                                       |
 
 ### Explanation
 
 All routes follow the same pattern:
 
 1. Parse query parameters from the incoming request.
-2. Call the appropriate function — either directly (`src/lib/mangadex.ts`, `src/lib/anilist.ts`) or via the provider registry (`src/lib/providers/`).
+2. Call the appropriate function — either directly (`src/providers/mangadex/`) or via the aggregator (`src/providers/aggregator.ts`).
 3. Return the normalized result as JSON.
 4. On error, return `{ error: "..." }` with a 500 status code.
 
-**Multi-source routes** (`/api/manga/[id]/chapters`, `/api/manga/[id]/sources`, `/api/chapter/resolve`) use the provider registry to dispatch to the correct provider. The `source` parameter determines which `ContentProvider` implementation handles the request.
+**Multi-source discovery routes** (`/api/search`, `/api/suggest`, `/api/manga/trending`, `/api/manga/popular`, `/api/manga/latest`) use the aggregator to query all providers in parallel:
+
+1. The aggregator calls `searchAll()` or `browseAll()` which queries MangaDex and MangaPill concurrently.
+2. Results are deduplicated using romanization normalization and Levenshtein similarity (0.85 threshold).
+3. Each result includes a `sources[]` array showing which providers have that manga.
+4. Optional AniList enrichment adds metadata like scores and banners.
+
+**Chapter resolution routes** (`/api/manga/[id]/chapters`, `/api/manga/[id]/sources`, `/api/chapter/resolve`) use the provider registry to dispatch to the correct provider:
+
+- `source=mangadex` → MangaDex API
+- `source=mangapill` → MangaPill via Consumet
 
 **Caching strategy:**
 
@@ -569,7 +680,7 @@ All routes follow the same pattern:
 - `/api/manga/[id]/sources` — `TTLCache` with 30 min TTL, max 500 entries
 - `/api/manga/[id]/chapters` (non-MangaDex) — `TTLCache` with 1 hr TTL, max 200 entries
 
-**Security:** The `/api/proxy-image` route prevents SSRF by maintaining a whitelist of allowed image domains and mapping source names to referer headers server-side. It never accepts arbitrary URLs or referers from clients.
+**Security:** The `/api/proxy-image` route prevents SSRF by maintaining a whitelist of allowed image domains (`mangapill`) and mapping source names to referer headers server-side. It never accepts arbitrary URLs or referers from clients.
 
 ---
 

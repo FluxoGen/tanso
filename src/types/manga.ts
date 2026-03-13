@@ -15,10 +15,12 @@ export interface Manga {
 	tags: MangaTag[];
 	coverId: string | null;
 	coverFileName: string | null;
+	coverUrl?: string;
 	authorName: string | null;
 	artistName: string | null;
 	lastChapter: string | null;
 	lastVolume: string | null;
+	provider?: string;
 }
 
 export interface Chapter {

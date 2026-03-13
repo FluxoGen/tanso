@@ -1,12 +1,16 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { getCoverUrl } from '@/lib/mangadex';
+import { resolveMangaCover } from '@/lib/cover-utils';
 import { buildMangaUrl } from '@/lib/manga-urls';
 import type { Manga } from '@/types/manga';
 
-export function MangaCard({ manga }: { manga: Manga }) {
-	const coverUrl = manga.coverFileName ? getCoverUrl(manga.id, manga.coverFileName, '256') : null;
+interface MangaCardProps {
+	manga: Manga;
+}
+
+export function MangaCard({ manga }: MangaCardProps) {
+	const coverUrl = resolveMangaCover(manga, '256');
 
 	return (
 		<Link

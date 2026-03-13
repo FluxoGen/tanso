@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getProvider } from '@/lib/providers';
+import { getProvider } from '@/providers';
+import { wrapAsLegacyProvider } from '@/providers/compat';
 
 export async function GET(request: NextRequest) {
 	try {
@@ -11,10 +12,11 @@ export async function GET(request: NextRequest) {
 			return NextResponse.json({ error: 'source and chapterId params required' }, { status: 400 });
 		}
 
-		const provider = getProvider(source);
-		if (!provider) {
+		const newProvider = getProvider(source);
+		if (!newProvider) {
 			return NextResponse.json({ error: `Unknown provider: ${source}` }, { status: 400 });
 		}
+		const provider = wrapAsLegacyProvider(newProvider);
 
 		const pages = await provider.getChapterPages(chapterId);
 		return NextResponse.json(pages);

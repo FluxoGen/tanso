@@ -1,7 +1,14 @@
-import type { Manga, MangaTag, Chapter, PaginatedResponse } from '@/types/manga';
-import { fetchWithRetry } from './fetch-utils';
+/**
+ * MangaDex API Client
+ *
+ * Low-level API functions for interacting with the MangaDex API.
+ * Migrated from src/lib/mangadex.ts for provider consolidation.
+ */
 
-interface MangaDexChapterPages {
+import type { Manga, MangaTag, Chapter, PaginatedResponse } from '@/types/manga';
+import { fetchWithRetry } from '@/lib/fetch-utils';
+
+export interface MangaDexChapterPages {
 	baseUrl: string;
 	hash: string;
 	data: string[];
@@ -9,8 +16,6 @@ interface MangaDexChapterPages {
 }
 
 const BASE_URL = 'https://api.mangadex.org';
-
-// --- Raw MangaDex types (internal) ---
 
 interface MdRelationship {
 	id: string;
@@ -50,8 +55,6 @@ export function appendContentRatings(params: URLSearchParams, ratings?: string[]
 		params.append('contentRating[]', rating);
 	}
 }
-
-// --- Helpers ---
 
 function pickTitle(
 	titles: Record<string, string>,
@@ -128,8 +131,6 @@ function normalizeChapter(item: {
 	};
 }
 
-// --- Public API ---
-
 export async function searchManga(
 	query: string,
 	options: {
@@ -145,12 +146,10 @@ export async function searchManga(
 		'includes[]': 'cover_art',
 	});
 
-	// Only include title param if query is not empty
 	if (query.trim()) {
 		params.set('title', query);
 		params.set('order[relevance]', 'desc');
 	} else {
-		// Genre-only search: use followedCount for better results
 		params.set('order[followedCount]', 'desc');
 	}
 

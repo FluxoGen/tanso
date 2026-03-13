@@ -1,8 +1,12 @@
-import type { ProviderSearchResult } from '@/lib/providers/types';
+import type { LegacyProviderSearchResult as ProviderSearchResult } from '@/providers/compat';
 
 const EDITION_KEYWORDS = ['(colored)', '(full color)', '(digital)', '(official)'];
 
-function normalizeRomanization(s: string): string {
+/**
+ * Normalize Japanese romanization variants for better matching.
+ * Handles common differences in how Japanese is romanized to English.
+ */
+export function normalizeRomanization(s: string): string {
 	return s
 		.replace(/\bwo\b/g, 'o') // particle を
 		.replace(/ou/g, 'o') // long vowel おう → お
@@ -12,7 +16,11 @@ function normalizeRomanization(s: string): string {
 		.replace(/\s+/g, ' ');
 }
 
-function levenshteinSimilarity(a: string, b: string): number {
+/**
+ * Calculate Levenshtein similarity between two strings.
+ * Returns a value between 0 (completely different) and 1 (identical).
+ */
+export function levenshteinSimilarity(a: string, b: string): number {
 	const la = a.length;
 	const lb = b.length;
 	if (la === 0 || lb === 0) return 0;

@@ -1,34 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getProvider } from '@/lib/providers';
+import { getProvider } from '@/providers';
 import { chapterCache } from '@/lib/cache';
 import type { Chapter } from '@/types/manga';
+import { wrapAsLegacyProvider } from '@/providers/compat';
+import { parseProviderId } from '@/lib/provider-id';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
 	try {
 		const { id } = await params;
 		const searchParams = request.nextUrl.searchParams;
-		const source = searchParams.get('source') ?? 'mangadex';
-		const sourceId = searchParams.get('sourceId') ?? id;
+		const { provider: defaultProvider, sourceId: defaultSourceId } = parseProviderId(id);
+		const source = searchParams.get('source') ?? defaultProvider;
+		const sourceId = searchParams.get('sourceId') ?? defaultSourceId;
 		const currentChapterId = searchParams.get('chapterId');
 
-		const provider = getProvider(source);
-		if (!provider) {
+		const newProvider = getProvider(source);
+		if (!newProvider) {
 			return NextResponse.json({ error: `Unknown provider: ${source}` }, { status: 400 });
 		}
+		const provider = wrapAsLegacyProvider(newProvider);
 
 		if (source === 'mangadex') {
-			// MangaDex uses server-side pagination
 			const page = parseInt(searchParams.get('page') ?? '1', 10);
 			const lang = searchParams.get('lang') ?? 'en';
 			const limit = 30;
 			const offset = (page - 1) * limit;
 
-			const { getMangaChapters } = await import('@/lib/mangadex');
-			const result = await getMangaChapters(id, { limit, offset, translatedLanguage: lang });
+			const mangadexId = searchParams.get('sourceId') ?? defaultSourceId;
+			const { getMangaChapters } = await import('@/providers/mangadex');
+			const result = await getMangaChapters(mangadexId, {
+				limit,
+				offset,
+				translatedLanguage: lang,
+			});
 
-			// If chapterId is provided, find navigation info
 			if (currentChapterId) {
-				const nav = await getChapterNavigation(id, currentChapterId, lang);
+				const nav = await getChapterNavigation(mangadexId, currentChapterId, lang);
 				return NextResponse.json({ ...result, nav });
 			}
 
@@ -77,7 +84,7 @@ function findNavInList(chapters: Chapter[], currentChapterId: string) {
 }
 
 async function getChapterNavigation(mangaId: string, chapterId: string, lang: string) {
-	const { getMangaChapters } = await import('@/lib/mangadex');
+	const { getMangaChapters } = await import('@/providers/mangadex');
 
 	// Fetch all chapters in ascending order to find prev/next
 	const result = await getMangaChapters(mangaId, {
